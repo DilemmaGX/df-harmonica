@@ -26,6 +26,8 @@ export const translations = {
       selectTool: 'Select',
       drawTool: 'Draw',
       eraseTool: 'Erase',
+      composeMode: 'Compose',
+      performMode: 'Perform',
     },
     pianoRoll: {
       noNotes: 'Click to add notes',
@@ -36,6 +38,16 @@ export const translations = {
       octave: 'Octave',
       sharp: 'Sharp',
       duration: 'Duration',
+    },
+    keyboardSimulator: {
+      title: 'Live Performance',
+      subtitle: 'Play in real time with your computer keyboard',
+      hint: 'Press Z X C V B N M , to play. Hold left mouse button for -1 octave, hold right mouse button for +1 octave, hold middle mouse button for sharp.',
+      octaveDown: '-1 Octave',
+      octaveUp: '+1 Octave',
+      sharp: 'Sharp',
+      natural: 'Natural',
+      currentOctave: 'Octave',
     },
     keyboardPreview: {
       title: 'Keyboard Preview',
@@ -102,6 +114,8 @@ export const translations = {
       selectTool: '选择',
       drawTool: '绘制',
       eraseTool: '擦除',
+      composeMode: '谱曲',
+      performMode: '演奏',
     },
     pianoRoll: {
       noNotes: '点击添加音符',
@@ -112,6 +126,16 @@ export const translations = {
       octave: '八度',
       sharp: '半音',
       duration: '时值',
+    },
+    keyboardSimulator: {
+      title: '实时演奏',
+      subtitle: '用电脑键盘实时演奏口风琴',
+      hint: '按 Z X C V B N M , 演奏。按住鼠标左键降低八度，按住右键提高八度，按住中键全部升半音。',
+      octaveDown: '降八度',
+      octaveUp: '升八度',
+      sharp: '升半音',
+      natural: '还原',
+      currentOctave: '八度',
     },
     keyboardPreview: {
       title: '键盘谱预览',

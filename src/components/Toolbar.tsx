@@ -1,4 +1,7 @@
-import { AppBar, Toolbar as MuiToolbar, IconButton, TextField, Box, Divider, Tooltip, Select, MenuItem, FormControl } from '@mui/material'
+import {
+  AppBar, Toolbar as MuiToolbar, IconButton, TextField, Box, Divider,
+  Tooltip, Select, MenuItem, FormControl, ToggleButton, ToggleButtonGroup,
+} from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
@@ -10,18 +13,37 @@ import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness'
 import PreviewIcon from '@mui/icons-material/Preview'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import MusicNoteIcon from '@mui/icons-material/MusicNote'
+import PianoIcon from '@mui/icons-material/Piano'
 import { useAppContext } from '../contexts/AppContext'
 import { getTranslations } from '../i18n/translations'
 import { playNotes, stopPlayback } from '../utils/audio'
+
+export type ViewMode = 'compose' | 'perform'
 
 interface ToolbarProps {
   onImportAbc: () => void
   onExportAbc: () => void
   onClearAll: () => void
   onOpenKeyboardPreview: () => void
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
+  performShowScore: boolean
+  onTogglePerformScore: () => void
 }
 
-export function Toolbar({ onImportAbc, onExportAbc, onClearAll, onOpenKeyboardPreview }: ToolbarProps) {
+export function Toolbar({
+  onImportAbc,
+  onExportAbc,
+  onClearAll,
+  onOpenKeyboardPreview,
+  viewMode,
+  onViewModeChange,
+  performShowScore,
+  onTogglePerformScore,
+}: ToolbarProps) {
   const {
     track, setTrack, language, setLanguage, themeMode, setThemeMode,
     isPlaying, setIsPlaying, undo, redo, canUndo, canRedo, addToHistory,
@@ -55,27 +77,75 @@ export function Toolbar({ onImportAbc, onExportAbc, onClearAll, onOpenKeyboardPr
     onClearAll()
   }
 
+  const isCompose = viewMode === 'compose'
+
   return (
     <AppBar position="static" color="default" elevation={1} sx={{ backgroundColor: 'background.paper' }}>
       <MuiToolbar variant="dense" sx={{ gap: 1, px: 2, minHeight: 48, flexWrap: 'nowrap', overflowX: 'auto' }}>
+
+        {/* 业务切换：演奏在左（默认），谱曲在右 */}
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={viewMode}
+          onChange={(_, v: ViewMode | null) => { if (v) onViewModeChange(v) }}
+          sx={{ mr: 0.5 }}
+        >
+          <ToggleButton value="perform" sx={{ px: 1.2, py: 0.4 }}>
+            <Tooltip title={t.toolbar.performMode}>
+              <PianoIcon fontSize="small" />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="compose" sx={{ px: 1.2, py: 0.4 }}>
+            <Tooltip title={t.toolbar.composeMode}>
+              <MusicNoteIcon fontSize="small" />
+            </Tooltip>
+          </ToggleButton>
+        </ToggleButtonGroup>
+
+        <Divider orientation="vertical" flexItem />
+
+        {/* 演奏模式：键盘谱显隐按钮 */}
+        {viewMode === 'perform' && (
+          <>
+            <Tooltip title={performShowScore ? t.keyboardPreview.title : t.keyboardPreview.title}>
+              <IconButton
+                size="small"
+                onClick={onTogglePerformScore}
+                color={performShowScore ? 'primary' : 'default'}
+              >
+                {performShowScore ? <VisibilityOffIcon /> : <VisibilityIcon />}
+              </IconButton>
+            </Tooltip>
+            <Divider orientation="vertical" flexItem />
+          </>
+        )}
+
         <Tooltip title={isPlaying ? t.toolbar.stop : t.toolbar.play}>
-          <IconButton size="small" onClick={handlePlay} color={isPlaying ? 'error' : 'primary'}>
-            {isPlaying ? <StopIcon /> : <PlayArrowIcon />}
-          </IconButton>
+          <span>
+            <IconButton
+              size="small"
+              onClick={handlePlay}
+              color={isPlaying ? 'error' : 'primary'}
+              disabled={!isCompose}
+            >
+              {isPlaying ? <StopIcon /> : <PlayArrowIcon />}
+            </IconButton>
+          </span>
         </Tooltip>
 
         <Divider orientation="vertical" flexItem />
 
         <Tooltip title={t.toolbar.undo}>
           <span>
-            <IconButton size="small" onClick={undo} disabled={!canUndo}>
+            <IconButton size="small" onClick={undo} disabled={!canUndo || !isCompose}>
               <UndoIcon />
             </IconButton>
           </span>
         </Tooltip>
         <Tooltip title={t.toolbar.redo}>
           <span>
-            <IconButton size="small" onClick={redo} disabled={!canRedo}>
+            <IconButton size="small" onClick={redo} disabled={!canRedo || !isCompose}>
               <RedoIcon />
             </IconButton>
           </span>
@@ -84,28 +154,45 @@ export function Toolbar({ onImportAbc, onExportAbc, onClearAll, onOpenKeyboardPr
         <Divider orientation="vertical" flexItem />
 
         <Tooltip title={t.toolbar.importAbc}>
-          <IconButton size="small" onClick={onImportAbc}>
-            <FileOpenIcon />
-          </IconButton>
+          <span>
+            <IconButton size="small" onClick={onImportAbc} disabled={!isCompose}>
+              <FileOpenIcon />
+            </IconButton>
+          </span>
         </Tooltip>
         <Tooltip title={t.toolbar.exportAbc}>
-          <IconButton size="small" onClick={onExportAbc}>
-            <SaveIcon />
-          </IconButton>
+          <span>
+            <IconButton size="small" onClick={onExportAbc} disabled={!isCompose}>
+              <SaveIcon />
+            </IconButton>
+          </span>
         </Tooltip>
 
         <Divider orientation="vertical" flexItem />
 
         <Tooltip title={t.toolbar.clear}>
-          <IconButton size="small" onClick={handleClearAll} color="warning">
-            <DeleteIcon />
-          </IconButton>
+          <span>
+            <IconButton
+              size="small"
+              onClick={handleClearAll}
+              color="warning"
+              disabled={!isCompose}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </span>
         </Tooltip>
 
         <Tooltip title={t.keyboardPreview.title}>
-          <IconButton size="small" onClick={onOpenKeyboardPreview}>
-            <PreviewIcon />
-          </IconButton>
+          <span>
+            <IconButton
+              size="small"
+              onClick={onOpenKeyboardPreview}
+              disabled={!isCompose}
+            >
+              <PreviewIcon />
+            </IconButton>
+          </span>
         </Tooltip>
 
         <Box sx={{ flexGrow: 1 }} />

@@ -93,30 +93,38 @@ function beatsToAbcDuration(durationBeats: number): string {
 }
 
 function abcDurationToBeats(duration: string): number {
-  if (!duration) return 0.5
+  // 默认音符长度 L:1/8 → 一个八分音符 = 0.5 拍
+  const DEFAULT_NOTE = 0.5
+  if (!duration) return DEFAULT_NOTE
   if (duration.includes('/')) {
     const [num, den] = duration.split('/').map(Number)
-    if (!den || !num) return 0.5
-    return (num / den) * 2
+    if (!den || !num) return DEFAULT_NOTE
+    // 分数是「默认音符长度的倍数」，因此 × 0.5 拍
+    return (num / den) * DEFAULT_NOTE
   }
   const n = Number(duration)
-  if (Number.isNaN(n) || n <= 0) return 0.5
-  return n / 2
+  if (Number.isNaN(n) || n <= 0) return DEFAULT_NOTE
+  return n * DEFAULT_NOTE
 }
 
 export function notesToAbc(track: Track): string {
   const notes = [...track.notes].sort((a, b) => a.startBeat - b.startBeat)
+
+  // 头部包含 BPM（Q:1/4=xxx）与拍号（M:x/4），保证导入端可完整还原
+  const header: string[] = [
+    'X:1',
+    'T:Harmonica Tune',
+    `M:${track.beatsPerBar}/4`,
+    'L:1/8',
+    `Q:1/4=${track.bpm}`,
+    'K:C',
+  ]
+
   if (notes.length === 0) {
-    return `X:1\nT:Untitled\nM:${track.beatsPerBar}/4\nL:1/8\nK:C\n`
+    return header.join('\n') + '\n'
   }
 
-  const lines: string[] = []
-  lines.push('X:1')
-  lines.push('T:Harmonica Tune')
-  lines.push(`M:${track.beatsPerBar}/4`)
-  lines.push('L:1/8')
-  lines.push('K:C')
-
+  const lines: string[] = [...header]
   let currentBeat = 0
   let currentLine = ''
   let lineBeatCount = 0
@@ -149,7 +157,6 @@ export function notesToAbc(track: Track): string {
     }
   }
 
-  // 不再需要补齐到 totalBeats，因为 Track 中已移除该字段
   if (currentLine.trim()) {
     lines.push(currentLine.trim())
   }
@@ -157,26 +164,45 @@ export function notesToAbc(track: Track): string {
   return lines.join('\n')
 }
 
-export function abcToNotes(abcString: string): { notes: Note[]; beatsPerBar: number; bpm: number } | null {
-  const lines = abcString.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+export function abcToNotes(
+  abcString: string,
+): { notes: Note[]; beatsPerBar: number; bpm: number } | null {
+  const lines = abcString
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
 
   let beatsPerBar = 4
   let bpm = 120
   const noteLines: string[] = []
 
-  const headerRegex = /^([A-Z]):\s*(.+)$/
+  const headerRegex = /^([A-Z]):\s*(.*)$/
   for (const line of lines) {
     const match = line.match(headerRegex)
     if (match) {
       const [, field, value] = match
-      if (field === 'M' && value.includes('/')) {
-        const num = Number(value.split('/')[0])
-        if (num > 0) beatsPerBar = num
+
+      if (field === 'M') {
+        const v = value.trim()
+        if (v.includes('/')) {
+          // M:4/4、M:3/4、M:6/8 等 → 取分子
+          const num = Number(v.split('/')[0])
+          if (num > 0) beatsPerBar = num
+        } else if (v === 'C') {
+          beatsPerBar = 4
+        } else if (v === 'C|') {
+          beatsPerBar = 2
+        }
       }
-      if (field === 'Q' && value.includes('=')) {
-        const num = Number(value.split('=')[1])
+
+      if (field === 'Q') {
+        // 支持 Q:1/4=120 / Q:120 / Q:"Andante" 1/4=120
+        const eqIdx = value.lastIndexOf('=')
+        const numStr = (eqIdx !== -1 ? value.slice(eqIdx + 1) : value).trim()
+        const num = Number(numStr)
         if (num > 0) bpm = num
       }
+
       continue
     }
     if (!line.startsWith('%') && !line.startsWith('|')) {
@@ -229,8 +255,15 @@ export function abcToNotes(abcString: string): { notes: Note[]; beatsPerBar: num
   return { notes, beatsPerBar, bpm }
 }
 
-function findMappingForMidi(midi: number): { key: HarmonicaKey; octaveShift: OctaveShift; isSharp: boolean } | null {
-  let best: { key: HarmonicaKey; octaveShift: OctaveShift; isSharp: boolean; score: number } | null = null
+function findMappingForMidi(
+  midi: number,
+): { key: HarmonicaKey; octaveShift: OctaveShift; isSharp: boolean } | null {
+  let best: {
+    key: HarmonicaKey
+    octaveShift: OctaveShift
+    isSharp: boolean
+    score: number
+  } | null = null
 
   for (const key of KEY_ORDER) {
     for (const octaveShift of [-1, 0, 1] as OctaveShift[]) {

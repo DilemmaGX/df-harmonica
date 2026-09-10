@@ -11,6 +11,13 @@ let currentSources: Stoppable[] = []
 let previewOsc: OscillatorNode | null = null
 let previewGain: GainNode | null = null
 
+// 实时演奏（多音持续）—— 以 id 为键，支持同时按下多个音
+interface KeyNoteHandle {
+  osc: OscillatorNode
+  gain: GainNode
+}
+const activeKeyNotes = new Map<string, KeyNoteHandle>()
+
 function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new AudioContext()
@@ -134,5 +141,65 @@ export function stopPreviewNote(): void {
     osc.stop(now + 0.06)
   } catch {
     // ignore
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 实时演奏：以任意字符串 id 为键的持续音，支持多键同时按住
+// ---------------------------------------------------------------------------
+
+export function startKeyNote(id: string, midi: number): void {
+  // 若已存在同 id 的音，先平滑停止（避免叠音）
+  stopKeyNote(id)
+
+  const ctx = getAudioContext()
+  if (ctx.state === 'suspended') {
+    void ctx.resume()
+  }
+
+  const frequency = getMidiFrequency(midi)
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  const filter = ctx.createBiquadFilter()
+
+  osc.type = 'sawtooth'
+  osc.frequency.value = frequency
+
+  filter.type = 'lowpass'
+  filter.frequency.value = Math.min(frequency * 4, 6000)
+  filter.Q.value = 0.7
+
+  const now = ctx.currentTime
+  gain.gain.setValueAtTime(0, now)
+  gain.gain.linearRampToValueAtTime(0.3, now + 0.012)
+
+  osc.connect(filter)
+  filter.connect(gain)
+  gain.connect(ctx.destination)
+
+  osc.start(now)
+
+  activeKeyNotes.set(id, { osc, gain })
+}
+
+export function stopKeyNote(id: string): void {
+  const handle = activeKeyNotes.get(id)
+  if (!handle) return
+  activeKeyNotes.delete(id)
+  if (!audioContext) return
+  const now = audioContext.currentTime
+  try {
+    handle.gain.gain.cancelScheduledValues(now)
+    handle.gain.gain.setValueAtTime(handle.gain.gain.value, now)
+    handle.gain.gain.linearRampToValueAtTime(0, now + 0.05)
+    handle.osc.stop(now + 0.06)
+  } catch {
+    // ignore
+  }
+}
+
+export function stopAllKeyNotes(): void {
+  for (const id of Array.from(activeKeyNotes.keys())) {
+    stopKeyNote(id)
   }
 }
