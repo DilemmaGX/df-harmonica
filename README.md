@@ -40,7 +40,7 @@ A score editor for the *Delta Force* harmonica easter egg.
 | Paste (ghost preview) | `Ctrl+V`, then left-click to place |
 | Box select | `Shift` + drag (left button) |
 | Box delete | `Shift` + drag (right button) |
-| Move selection | Arrow keys |
+| Move selection | Drag any selected note |
 | Delete selection | `Delete` |
 | Cancel selection / ghost | `Esc` |
 | Zoom timeline | `Ctrl` + scroll |

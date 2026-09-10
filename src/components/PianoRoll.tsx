@@ -30,6 +30,7 @@ interface DragState {
   originalStartBeat: number
   originalDuration: number
   originalMidi: number
+  originalNotes: Note[]
 }
 
 interface SelectionRect {
@@ -88,6 +89,7 @@ export function PianoRoll(_props: PianoRollProps) {
     originalStartBeat: 0,
     originalDuration: 0,
     originalMidi: 0,
+    originalNotes: [],
   })
   const playbackStartTimeRef = useRef<number | null>(null)
   const animationFrameRef = useRef<number | null>(null)
@@ -311,34 +313,6 @@ export function PianoRoll(_props: PianoRollProps) {
         return
       }
 
-      // 方向键：整体移动选中音符
-      if ((e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight')
-        && selectedNoteIds.size > 0 && !ghostMode) {
-        e.preventDefault()
-        const deltaBeat = e.code === 'ArrowLeft' ? -0.25 : e.code === 'ArrowRight' ? 0.25 : 0
-        const deltaMidi = e.code === 'ArrowUp' ? 1 : e.code === 'ArrowDown' ? -1 : 0
-
-        addToHistory()
-        setNotes(prev => prev.map(n => {
-          if (!selectedNoteIds.has(n.id)) return n
-          if (deltaMidi !== 0) {
-            const currentMidi = getMidiNote(n.key, n.octaveShift, n.isSharp)
-            const targetMidi = currentMidi + deltaMidi
-            if (targetMidi < MIN_MIDI || targetMidi > MAX_MIDI) return n
-            const mapping = findBestMapping(targetMidi)
-            if (mapping) {
-              return { ...n, key: mapping.key, octaveShift: mapping.octaveShift, isSharp: mapping.isSharp }
-            }
-            return n
-          }
-          if (deltaBeat !== 0) {
-            return { ...n, startBeat: Math.max(0, n.startBeat + deltaBeat) }
-          }
-          return n
-        }))
-        return
-      }
-
       // Delete：删除选中
       if (e.code === 'Delete' && selectedNoteIds.size > 0) {
         e.preventDefault()
@@ -436,6 +410,7 @@ export function PianoRoll(_props: PianoRollProps) {
         originalStartBeat: 0,
         originalDuration: 0,
         originalMidi: 0,
+        originalNotes: [],
       }
       setSelectionRect({ x1: x, y1: y, x2: x, y2: y })
       setSelectionMode('select')
@@ -454,6 +429,7 @@ export function PianoRoll(_props: PianoRollProps) {
         originalStartBeat: 0,
         originalDuration: 0,
         originalMidi: 0,
+        originalNotes: [],
       }
       setSelectionRect({ x1: x, y1: y, x2: x, y2: y })
       setSelectionMode('deleteSelect')
@@ -463,11 +439,18 @@ export function PianoRoll(_props: PianoRollProps) {
     if (e.button === 0) {
       const hitNote = findNoteAt(x, y)
       if (hitNote) {
+        const isSelected = selectedNoteIds.has(hitNote.id)
+        const isMultiSelected = isSelected && selectedNoteIds.size > 1
         const noteX = beatToX(hitNote.startBeat)
         const noteW = hitNote.durationBeats * pixelsPerBeat
         const isResizeLeft = Math.abs(x - noteX) <= RESIZE_ZONE
         const isResizeRight = Math.abs(x - (noteX + noteW)) <= RESIZE_ZONE
-        const type = isResizeLeft ? 'resizeLeft' : isResizeRight ? 'resizeRight' : 'move'
+        // 多选时，在任意选中音符上拖动都进入整体移动；单选时保留边缘缩放
+        const type = isMultiSelected ? 'move' : (isResizeLeft ? 'resizeLeft' : isResizeRight ? 'resizeRight' : 'move')
+        const notesForDrag = isSelected
+          ? track.notes.filter(n => selectedNoteIds.has(n.id))
+          : [hitNote]
+
         dragStateRef.current = {
           type,
           noteId: hitNote.id,
@@ -478,7 +461,9 @@ export function PianoRoll(_props: PianoRollProps) {
           originalStartBeat: hitNote.startBeat,
           originalDuration: hitNote.durationBeats,
           originalMidi: getMidiNote(hitNote.key, hitNote.octaveShift, hitNote.isSharp),
+          originalNotes: notesForDrag.map(n => ({ ...n })),
         }
+
         // 如果该音符不在选中集合中，则单选；若在选中集合中则保持集合（支持整体拖动）
         setSelectedNoteIds(prev => {
           if (prev.has(hitNote.id)) return prev
@@ -498,6 +483,7 @@ export function PianoRoll(_props: PianoRollProps) {
             originalStartBeat: 0,
             originalDuration: 0,
             originalMidi: midi,
+            originalNotes: [],
           }
           // 点击空白区域，清空选择（如果没有按 shift）
           setSelectedNoteIds(new Set())
@@ -521,7 +507,7 @@ export function PianoRoll(_props: PianoRollProps) {
         setNotes(prev => prev.map(n => n.id === hitNote.id ? { ...n, isSharp: !n.isSharp } : n))
       }
     }
-  }, [ghostMode, clipboard, selectedNoteIds, clientToContent, xToBeat, yToMidi, findNoteAt, beatToX, pixelsPerBeat, checkOverlap, addToHistory, setNotes])
+  }, [ghostMode, clipboard, selectedNoteIds, track.notes, clientToContent, xToBeat, yToMidi, findNoteAt, beatToX, pixelsPerBeat, checkOverlap, addToHistory, setNotes])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const drag = dragStateRef.current
@@ -546,29 +532,61 @@ export function PianoRoll(_props: PianoRollProps) {
       const hitNote = findNoteAt(x, y)
       setHoveredNoteId(hitNote?.id ?? null)
       if (hitNote) {
-        const noteX = beatToX(hitNote.startBeat)
-        const noteW = hitNote.durationBeats * pixelsPerBeat
-        const isLeft = Math.abs(x - noteX) <= RESIZE_ZONE
-        const isRight = Math.abs(x - (noteX + noteW)) <= RESIZE_ZONE
-        setHoverCursor(isLeft || isRight ? 'ew-resize' : 'move')
+        const isSelected = selectedNoteIds.has(hitNote.id)
+        const isMultiSelected = isSelected && selectedNoteIds.size > 1
+        if (isMultiSelected) {
+          // 多选整体移动：显示十字箭头
+          setHoverCursor('move')
+        } else {
+          const noteX = beatToX(hitNote.startBeat)
+          const noteW = hitNote.durationBeats * pixelsPerBeat
+          const isLeft = Math.abs(x - noteX) <= RESIZE_ZONE
+          const isRight = Math.abs(x - (noteX + noteW)) <= RESIZE_ZONE
+          setHoverCursor(isLeft || isRight ? 'ew-resize' : 'move')
+        }
       } else {
         setHoverCursor('crosshair')
       }
       return
     }
 
-    if (drag.type === 'move' && drag.noteId) {
+    if (drag.type === 'move' && drag.originalNotes.length > 0) {
       const deltaX = e.clientX - drag.startClientX
       const deltaY = e.clientY - drag.startClientY
-      const deltaBeat = deltaX / pixelsPerBeat
-      const newStart = Math.max(0, drag.originalStartBeat + deltaBeat)
-      const snappedStart = Math.round(newStart * 4) / 4
-      const midiDelta = Math.round(-deltaY / DEFAULT_ROW_HEIGHT)
-      const newMidi = Math.max(MIN_MIDI, Math.min(MAX_MIDI, drag.originalMidi + midiDelta))
-      const mapping = findBestMapping(newMidi)
-      if (mapping) {
-        setNotes(prev => prev.map(n => n.id === drag.noteId ? { ...n, startBeat: snappedStart, key: mapping.key, octaveShift: mapping.octaveShift, isSharp: mapping.isSharp } : n))
-      }
+      const rawDeltaBeat = deltaX / pixelsPerBeat
+      const rawMidiDelta = Math.round(-deltaY / DEFAULT_ROW_HEIGHT)
+
+      const originalNotes = drag.originalNotes
+      const minStart = Math.min(...originalNotes.map(n => n.startBeat))
+      let deltaBeat = rawDeltaBeat
+      if (minStart + deltaBeat < 0) deltaBeat = -minStart
+
+      const midiValues = originalNotes.map(n => getMidiNote(n.key, n.octaveShift, n.isSharp))
+      const minMidi = Math.min(...midiValues)
+      const maxMidi = Math.max(...midiValues)
+      let midiDelta = rawMidiDelta
+      if (minMidi + midiDelta < MIN_MIDI) midiDelta = MIN_MIDI - minMidi
+      if (maxMidi + midiDelta > MAX_MIDI) midiDelta = MAX_MIDI - maxMidi
+
+      const snappedDeltaBeat = Math.round(deltaBeat * 4) / 4
+      const originalMap = new Map(originalNotes.map(n => [n.id, n]))
+
+      setNotes(prev => prev.map(n => {
+        const orig = originalMap.get(n.id)
+        if (!orig) return n
+        const newStart = Math.max(0, orig.startBeat + snappedDeltaBeat)
+        const currentMidi = getMidiNote(orig.key, orig.octaveShift, orig.isSharp)
+        const newMidi = currentMidi + midiDelta
+        const mapping = findBestMapping(newMidi)
+        if (!mapping) return n
+        return {
+          ...n,
+          startBeat: newStart,
+          key: mapping.key,
+          octaveShift: mapping.octaveShift,
+          isSharp: mapping.isSharp,
+        }
+      }))
     } else if (drag.type === 'resizeRight' && drag.noteId) {
       const deltaX = e.clientX - drag.startClientX
       const deltaBeat = deltaX / pixelsPerBeat
@@ -582,7 +600,7 @@ export function PianoRoll(_props: PianoRollProps) {
       const newDuration = Math.max(0.25, drag.originalDuration - deltaBeat)
       setNotes(prev => prev.map(n => n.id === drag.noteId ? { ...n, startBeat: snappedStart, durationBeats: Math.round(newDuration * 4) / 4 } : n))
     }
-  }, [ghostMode, clientToContent, findNoteAt, beatToX, pixelsPerBeat, setNotes])
+  }, [ghostMode, clientToContent, findNoteAt, beatToX, pixelsPerBeat, setNotes, selectedNoteIds])
 
   const handleMouseUp = useCallback(() => {
     const drag = dragStateRef.current
@@ -624,10 +642,29 @@ export function PianoRoll(_props: PianoRollProps) {
         const midi = yToMidi(contentY)
         addNote(beat, midi)
       }
-    } else if (drag.type === 'move' || drag.type === 'resizeLeft' || drag.type === 'resizeRight') {
+    } else if (drag.type === 'move') {
+      const movedIds = new Set(drag.originalNotes.map(n => n.id))
+      if (movedIds.size > 0) {
+        const movedNotes = track.notes.filter(n => movedIds.has(n.id))
+        const hasOverlap = movedNotes.some(n => checkOverlap(n, movedIds))
+        if (hasOverlap) {
+          const originalMap = new Map(drag.originalNotes.map(n => [n.id, n]))
+          setNotes(prev => prev.map(n => {
+            const orig = originalMap.get(n.id)
+            return orig
+              ? { ...n, startBeat: orig.startBeat, durationBeats: orig.durationBeats, key: orig.key, octaveShift: orig.octaveShift, isSharp: orig.isSharp }
+              : n
+          }))
+          setSnackbarMessage(t.pianoRoll.overlapError)
+          setSnackbarOpen(true)
+        } else {
+          addToHistory()
+        }
+      }
+    } else if (drag.type === 'resizeLeft' || drag.type === 'resizeRight') {
       if (drag.noteId) {
         const draggedNote = track.notes.find(n => n.id === drag.noteId)
-        if (draggedNote && checkOverlap(draggedNote, selectedNoteIds.size > 0 ? selectedNoteIds : new Set([drag.noteId]))) {
+        if (draggedNote && checkOverlap(draggedNote, new Set([drag.noteId]))) {
           setNotes(prev => prev.map(n => n.id === draggedNote.id ? { ...n, startBeat: drag.originalStartBeat, durationBeats: drag.originalDuration } : n))
           setSnackbarMessage(t.pianoRoll.overlapError)
           setSnackbarOpen(true)
@@ -636,8 +673,19 @@ export function PianoRoll(_props: PianoRollProps) {
         }
       }
     }
-    dragStateRef.current = { type: 'none', noteId: null, startClientX: 0, startClientY: 0, startContentX: 0, startContentY: 0, originalStartBeat: 0, originalDuration: 0, originalMidi: 0 }
-  }, [selectionRect, track.notes, beatToX, midiToY, pixelsPerBeat, addToHistory, setNotes, xToBeat, yToMidi, addNote, checkOverlap, selectedNoteIds, t])
+    dragStateRef.current = {
+      type: 'none',
+      noteId: null,
+      startClientX: 0,
+      startClientY: 0,
+      startContentX: 0,
+      startContentY: 0,
+      originalStartBeat: 0,
+      originalDuration: 0,
+      originalMidi: 0,
+      originalNotes: [],
+    }
+  }, [selectionRect, track.notes, beatToX, midiToY, pixelsPerBeat, addToHistory, setNotes, xToBeat, yToMidi, addNote, checkOverlap, t])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
