@@ -1,49 +1,64 @@
-# DF Harmonica - 守夜人口风琴谱制作工具
+# df-harmonica
 
-一个为《三角洲行动》守夜人口风琴彩蛋设计的乐谱制作工具，支持图形化钢琴卷帘编辑、ABC Notation 导入导出、实时试听以及键盘谱图片预览/导出。
+A score editor for the *Delta Force* harmonica easter egg.
 
-## 技术栈
+## What it does
 
-- **React 19 + TypeScript + Vite**
-- **Material UI v7** - 界面组件
-- **abcjs** - ABC Notation 解析与渲染
-- **Web Audio API** - 音频合成与试听
-- **Canvas** - 钢琴卷帘编辑器渲染
+- **Piano roll editor** — click to place notes, drag to move, drag either edge to
+  resize. Each note is snapped to the nearest 1/4 beat.
+- **Score preview & export** — renders the score as a horizontal keyboard
+  layout (key labels inside the note blocks) and exports it to PNG or SVG.
+- **ABC notation** — import and export standard ABC. Useful for round-tripping
+  with tools like EasyABC.
+- **Playback** — a simple sawtooth-based synth for auditioning. Click the row
+  labels on the left to hear an isolated pitch while editing.
+- **Undo / redo** — `Ctrl+Z` / `Ctrl+Y`, plus a toolbar pair.
+- **Smart key mapping** — when the same pitch can be produced by multiple key
+  combinations (e.g. octave-down `,` vs. octave-up `z`), the exporter picks the
+  one that minimizes mouse input across the phrase.
 
-## 快速开始
+## Key mapping
+
+| Key | Default | Left-click | Right-click | Middle-click |
+|-----|---------|------------|-------------|--------------|
+| `z` | C4      | C3         | C5          | C#4          |
+| `x` | D4      | D3         | D5          | D#4          |
+| `c` | E4      | E3         | E5          | F4           |
+| `v` | F4      | F3         | F5          | F#4          |
+| `b` | G4      | G3         | G5          | G#4          |
+| `n` | A4      | A3         | A5          | A#4          |
+| `m` | B4      | B3         | B5          | C5           |
+| `,` | C5      | C4         | C6          | C#5          |
+
+## Editor shortcuts
+
+| Action | Shortcut |
+|--------|----------|
+| Play / stop | `Space` |
+| Undo / redo | `Ctrl+Z` / `Ctrl+Y` |
+| Copy selection | `Ctrl+C` |
+| Paste (ghost preview) | `Ctrl+V`, then left-click to place |
+| Box select | `Shift` + drag (left button) |
+| Box delete | `Shift` + drag (right button) |
+| Move selection | Arrow keys |
+| Delete selection | `Delete` |
+| Cancel selection / ghost | `Esc` |
+| Zoom timeline | `Ctrl` + scroll |
+| Scroll horizontally | `Shift` + scroll |
+
+## Running locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-构建生产版本：
+Build:
 
 ```bash
 npm run build
+npm run preview
 ```
 
-## 守夜人口风琴键位映射
-
-| 按键 | 默认音高 (C大调) | 左键 (降8度) | 右键 (升8度) | 中键 (半音) |
-| ---- | ---------------- | ------------ | ------------ | ----------- |
-| Z    | C4 (1)           | C3           | C5           | C#4         |
-| X    | D4 (2)           | D3           | D5           | D#4         |
-| C    | E4 (3)           | E3           | E5           | F4          |
-| V    | F4 (4)           | F3           | F5           | F#4         |
-| B    | G4 (5)           | G3           | G5           | G#4         |
-| N    | A4 (6)           | A3           | A5           | A#4         |
-| M    | B4 (7)           | B3           | B5           | C5          |
-| ,    | C5 (高八度1)     | C4           | C6           | C#5         |
-
-## 功能特性
-
-- 🎹 **钢琴卷帘编辑器**：支持音符添加、拖拽移动、调整时长、删除，自动检测和弦冲突
-- 📝 **ABC Notation**：导入导出 ABC 格式乐谱，内置五线谱预览
-- 🔊 **实时试听**：基于 Web Audio API 的口风琴音色合成
-- 🖼️ **键盘谱预览**：色块式键盘谱显示，支持 PNG/SVG 导出
-- 🌐 **中英双语**：界面语言切换
-- 🌗 **主题切换**：亮色/暗色/跟随系统
-```
-</final>
-</final>
+The production bundle is deployed to GitHub Pages via the workflow in
+`.github/workflows/deploy.yml` on every push to `main`.
