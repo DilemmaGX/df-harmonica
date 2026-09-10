@@ -10,7 +10,7 @@ import { ImportProjectDialog } from './components/ImportProjectDialog'
 import { ClearAllDialog } from './components/ClearAllDialog'
 
 function AppContent() {
-  const { track, setTrack, notes, meta, setMeta, addToHistory } =
+  const { track, setTrack, notes, setMeta, addToHistory } =
     useAppContext()
 
   const [abcDialogOpen, setAbcDialogOpen] = useState(false)
