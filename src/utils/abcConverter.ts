@@ -55,7 +55,8 @@ function abcPitchToMidi(abcPitch: string): number | null {
     octave = 5 + (octaveMarks.match(/'/g)?.length ?? 0)
   }
 
-  let midi = octave * 12 + baseMidi
+  // 标准 ABC：大写 C = C4 = MIDI 60，因此需要 (octave + 1) * 12
+  let midi = (octave + 1) * 12 + baseMidi
   if (accidental === '^') midi += 1
   if (accidental === '_') midi -= 1
 

@@ -11,6 +11,10 @@ const MIN_NOTE_WIDTH = 24
 const HEADER_HEIGHT = 60
 const LINE_PADDING = 20
 
+// 导出时应与界面预览一致的字体栈；末尾以 sans-serif 兜底，避免渲染成衬线体
+const EXPORT_FONT_FAMILY =
+  "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif"
+
 interface KeyboardPreviewProps {
   notes: Note[]
   beatsPerBar: number
@@ -23,7 +27,7 @@ export function KeyboardPreviewDialog({ notes, beatsPerBar, totalBeats, open, on
   const { language } = useAppContext()
   const t = getTranslations(language)
   const [exportName, setExportName] = useState('harmonica-score')
-  const [barsPerLine, setBarsPerLine] = useState(4)
+  const [barsPerLine, setBarsPerLine] = useState(2)
   const previewRef = useRef<HTMLDivElement>(null)
 
   const sortedNotes = useMemo(() => [...notes].sort((a, b) => a.startBeat - b.startBeat), [notes])
@@ -91,6 +95,8 @@ export function KeyboardPreviewDialog({ notes, beatsPerBar, totalBeats, open, on
     if (!svg) return
     const serializer = new XMLSerializer()
     const svgClone = svg.cloneNode(true) as SVGSVGElement
+    // 显式再设一次 font-family，确保序列化后仍保留无衬线字体
+    svgClone.setAttribute('font-family', EXPORT_FONT_FAMILY)
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     bgRect.setAttribute('width', '100%')
     bgRect.setAttribute('height', '100%')
@@ -154,7 +160,7 @@ export function KeyboardPreviewDialog({ notes, beatsPerBar, totalBeats, open, on
             onChange={(e) => setBarsPerLine(Number(e.target.value))}
             sx={{ width: 120 }}
           >
-            {[2, 3, 4, 6, 8].map(n => (
+            {[1, 2, 3, 4, 6, 8].map(n => (
               <MenuItem key={n} value={n}>{n}</MenuItem>
             ))}
           </TextField>
@@ -167,7 +173,12 @@ export function KeyboardPreviewDialog({ notes, beatsPerBar, totalBeats, open, on
         </Stack>
 
         <Box ref={previewRef} sx={{ overflow: 'auto', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', p: 1 }}>
-          <svg width={svgWidth} height={svgHeight} style={{ display: 'block', background: '#fff' }}>
+          <svg
+            width={svgWidth}
+            height={svgHeight}
+            style={{ display: 'block', background: '#fff' }}
+            fontFamily={EXPORT_FONT_FAMILY}
+          >
             {/* 标题 */}
             <text x={10} y={20} fontSize="16" fontWeight="bold" fill="#333">{exportName}</text>
             {/* 图例 */}

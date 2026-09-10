@@ -535,7 +535,7 @@ export function PianoRoll(_props: PianoRollProps) {
         const isSelected = selectedNoteIds.has(hitNote.id)
         const isMultiSelected = isSelected && selectedNoteIds.size > 1
         if (isMultiSelected) {
-          // 多选整体移动：显示十字箭头
+          // 多选整体移动：显示移动十字箭头
           setHoverCursor('move')
         } else {
           const noteX = beatToX(hitNote.startBeat)
@@ -741,53 +741,66 @@ export function PianoRoll(_props: PianoRollProps) {
     stopPreviewNote()
   }, [])
 
-  const rows = useMemo(() => {
+  // 每行的背景色块，铺在主内容区（不含左侧标签）
+  const rowBackgrounds = useMemo(() => {
     const result: React.ReactNode[] = []
     for (let midi = MIN_MIDI; midi <= MAX_MIDI; midi++) {
       const y = midiToY(midi)
       const bgColor = getRowColor(midi)
-      const isPreview = previewMidi === midi
       result.push(
         <div key={midi} style={{ position: 'absolute', left: LEFT_PADDING, top: y, width: totalContentWidth - LEFT_PADDING, height: DEFAULT_ROW_HEIGHT, background: bgColor, borderBottom: '1px solid rgba(127,127,127,0.15)', userSelect: 'none', pointerEvents: 'none' }} />,
       )
+    }
+    return result
+  }, [midiToY, totalContentWidth, isDark])
+
+  // 左侧音高标签：使用 position: sticky 使水平滚动时常驻左侧
+  const rowLabels = useMemo(() => {
+    const result: React.ReactNode[] = []
+    for (let i = 0; i <= MAX_MIDI - MIN_MIDI; i++) {
+      const midi = MAX_MIDI - i
       const label = getJianpuLabel(midi)
+      const isPreview = previewMidi === midi
       result.push(
-        <div
-          key={`label-${midi}`}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: y,
-            width: LEFT_PADDING - 4,
-            height: DEFAULT_ROW_HEIGHT,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            fontSize: 12,
-            fontWeight: 500,
-            color: isPreview
-              ? '#fff'
-              : (isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'),
-            background: isPreview ? 'rgba(124,58,237,0.9)' : 'transparent',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            userSelect: 'none',
-            cursor: 'pointer',
-            paddingRight: 4,
-            borderRadius: 4,
-            transition: 'background 0.05s',
-          }}
-          onMouseDown={(e) => { e.stopPropagation(); handleLabelMouseDown(midi) }}
-          onMouseUp={handleLabelMouseUp}
-          onMouseLeave={handleLabelMouseUp}
-          title={`Play ${label}`}
-        >
-          {label}
+        <div key={`label-${midi}`} style={{ height: DEFAULT_ROW_HEIGHT, pointerEvents: 'none' }}>
+          <div
+            style={{
+              position: 'sticky',
+              left: 0,
+              width: LEFT_PADDING - 4,
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              paddingRight: 4,
+              fontSize: 12,
+              fontWeight: 500,
+              color: isPreview
+                ? '#fff'
+                : (isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'),
+              background: isPreview
+                ? 'rgba(124,58,237,0.9)'
+                : (isDark ? '#18181b' : '#fafafa'),
+              fontFamily: 'Inter, system-ui, sans-serif',
+              userSelect: 'none',
+              cursor: 'pointer',
+              borderRadius: 4,
+              pointerEvents: 'auto',
+            }}
+            onMouseDown={(e) => { e.stopPropagation(); handleLabelMouseDown(midi) }}
+            onMouseUp={handleLabelMouseUp}
+            onMouseLeave={handleLabelMouseUp}
+            title={`Play ${label}`}
+          >
+            {label}
+          </div>
         </div>,
       )
     }
     return result
-  }, [midiToY, totalContentWidth, isDark, previewMidi, handleLabelMouseDown, handleLabelMouseUp])
+  }, [isDark, previewMidi, handleLabelMouseDown, handleLabelMouseUp])
 
+  // 垂直线（在内容区滚动）
   const beatLines = useMemo(() => {
     const result: React.ReactNode[] = []
     for (let beat = 0; beat <= totalBeats; beat++) {
@@ -796,14 +809,38 @@ export function PianoRoll(_props: PianoRollProps) {
       result.push(
         <div key={`beat-${beat}`} style={{ position: 'absolute', left: x, top: BEAT_HEADER_HEIGHT, width: isBar ? 1.5 : 0.5, height: totalContentHeight - BEAT_HEADER_HEIGHT, background: isDark ? (isBar ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.08)') : (isBar ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.08)'), userSelect: 'none', pointerEvents: 'none' }} />,
       )
+    }
+    return result
+  }, [totalBeats, beatToX, track.beatsPerBar, totalContentHeight, isDark])
+
+  // 顶部小节号（使用 position: sticky 使垂直滚动时常驻顶部）
+  const barLabels = useMemo(() => {
+    const result: React.ReactNode[] = []
+    for (let beat = 0; beat <= totalBeats; beat++) {
+      const isBar = beat % track.beatsPerBar === 0
       if (isBar) {
+        const x = beatToX(beat)
         result.push(
-          <div key={`bar-label-${beat}`} style={{ position: 'absolute', left: x + 2, top: 4, fontSize: 11, fontWeight: 600, color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)', userSelect: 'none', pointerEvents: 'none' }}>{beat / track.beatsPerBar + 1}</div>,
+          <div
+            key={`bar-label-${beat}`}
+            style={{
+              position: 'absolute',
+              left: x + 2,
+              top: 4,
+              fontSize: 11,
+              fontWeight: 600,
+              color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)',
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }}
+          >
+            {beat / track.beatsPerBar + 1}
+          </div>,
         )
       }
     }
     return result
-  }, [totalBeats, beatToX, track.beatsPerBar, totalContentHeight, isDark])
+  }, [totalBeats, beatToX, track.beatsPerBar, isDark])
 
   const playheadX = beatToX(playheadBeat)
 
@@ -840,6 +877,8 @@ export function PianoRoll(_props: PianoRollProps) {
     })
   }, [ghostMode, ghostPos, clipboard, xToBeat, yToMidi])
 
+  const bgColor = isDark ? '#18181b' : '#fafafa'
+
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <div
@@ -855,9 +894,13 @@ export function PianoRoll(_props: PianoRollProps) {
         }}
         onContextMenu={handleContextMenu}
       >
-        <div style={{ position: 'relative', width: totalContentWidth, height: totalContentHeight, background: isDark ? '#18181b' : '#fafafa' }}>
-          {rows}
+        <div style={{ position: 'relative', width: totalContentWidth, height: totalContentHeight, background: bgColor }}>
+
+          {/* 1. 底层：行背景、拍号线 */}
+          {rowBackgrounds}
           {beatLines}
+
+          {/* 2. 中层：音符、ghost、选择框、播放头 */}
           {track.notes.map((note) => {
             const isHovered = note.id === hoveredNoteId
             const midi = getMidiNote(note.key, note.octaveShift, note.isSharp)
@@ -881,6 +924,74 @@ export function PianoRoll(_props: PianoRollProps) {
           {isPlaying && (
             <div style={{ position: 'absolute', left: playheadX, top: BEAT_HEADER_HEIGHT, width: 2, height: totalContentHeight - BEAT_HEADER_HEIGHT, background: '#7c3aed', pointerEvents: 'none', zIndex: 20 }} />
           )}
+
+          {/* 3. 左侧音高标签：水平方向 sticky */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: totalContentWidth,
+              height: totalContentHeight,
+              pointerEvents: 'none',
+              zIndex: 15,
+            }}
+          >
+            <div style={{ height: BEAT_HEADER_HEIGHT }} />
+            {rowLabels}
+          </div>
+
+          {/* 4. 顶部小节号：垂直方向 sticky */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: totalContentWidth,
+              height: totalContentHeight,
+              pointerEvents: 'none',
+              zIndex: 25,
+            }}
+          >
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                height: BEAT_HEADER_HEIGHT,
+                width: '100%',
+                background: bgColor,
+                pointerEvents: 'auto',
+              }}
+            >
+              {barLabels}
+            </div>
+          </div>
+
+          {/* 5. 左上角：两个方向都 sticky */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: totalContentWidth,
+              height: totalContentHeight,
+              pointerEvents: 'none',
+              zIndex: 35,
+            }}
+          >
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                left: 0,
+                width: LEFT_PADDING,
+                height: BEAT_HEADER_HEIGHT,
+                background: bgColor,
+                pointerEvents: 'auto',
+              }}
+            />
+          </div>
+
         </div>
       </div>
       <Snackbar open={snackbarOpen} autoHideDuration={3000} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
