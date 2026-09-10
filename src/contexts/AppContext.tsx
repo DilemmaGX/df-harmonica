@@ -1,6 +1,15 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from 'react'
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
 import type { Language, Note, ThemeMode, Track, ValidationError } from '../types'
+import { loadState, saveState } from '../utils/storage'
 
 interface AppState {
   track: Track
@@ -36,19 +45,24 @@ interface AppProviderProps {
   children: ReactNode
 }
 
+const DEFAULT_TRACK: Track = {
+  notes: [],
+  bpm: 120,
+  beatsPerBar: 4,
+}
+
 export function AppProvider({ children }: AppProviderProps) {
-  const [track, setTrackState] = useState<Track>({
-    notes: [],
-    bpm: 120,
-    beatsPerBar: 4,
-  })
-  const [language, setLanguage] = useState<Language>('zh')
-  const [themeMode, setThemeMode] = useState<ThemeMode>('system')
+  // 首次挂载时读取持久化状态（惰性初始化，仅执行一次）
+  const [persisted] = useState(() => loadState())
+
+  const [track, setTrackState] = useState<Track>(persisted?.track ?? DEFAULT_TRACK)
+  const [language, setLanguage] = useState<Language>(persisted?.language ?? 'zh')
+  const [themeMode, setThemeMode] = useState<ThemeMode>(persisted?.themeMode ?? 'system')
   const [errors, setErrors] = useState<ValidationError[]>([])
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
 
-  // 历史记录
+  // 历史记录（不持久化）
   const [history, setHistory] = useState<Track[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
 
@@ -56,12 +70,18 @@ export function AppProvider({ children }: AppProviderProps) {
     setTrackState(t)
   }, [])
 
-  const setNotes = useCallback((notesOrUpdater: Note[] | ((prev: Note[]) => Note[])) => {
-    setTrackState(prev => {
-      const newNotes = typeof notesOrUpdater === 'function' ? notesOrUpdater(prev.notes) : notesOrUpdater
-      return { ...prev, notes: newNotes }
-    })
-  }, [])
+  const setNotes = useCallback(
+    (notesOrUpdater: Note[] | ((prev: Note[]) => Note[])) => {
+      setTrackState(prev => {
+        const newNotes =
+          typeof notesOrUpdater === 'function'
+            ? notesOrUpdater(prev.notes)
+            : notesOrUpdater
+        return { ...prev, notes: newNotes }
+      })
+    },
+    [],
+  )
 
   const addToHistory = useCallback(() => {
     setHistory(prev => {
@@ -89,8 +109,37 @@ export function AppProvider({ children }: AppProviderProps) {
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < history.length - 1
 
+  // ---------------------------------------------------------------------------
+  // 持久化
+  // ---------------------------------------------------------------------------
+  // stateRef 始终指向最新的三项持久化状态；用它避免卸载 / beforeunload 时拿到过期闭包
+  const stateRef = useRef({ track, language, themeMode })
+  stateRef.current = { track, language, themeMode }
+
+  // 变化时防抖 300ms 写入
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      saveState(stateRef.current)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [track, language, themeMode])
+
+  // 关闭页面前立即写一次
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveState(stateRef.current)
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // 主题跟随系统
+  // ---------------------------------------------------------------------------
   const [systemPrefersDark, setSystemPrefersDark] = useState(
-    (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) ?? false
+    (typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-color-scheme: dark)').matches) ??
+      false,
   )
 
   useEffect(() => {
@@ -114,7 +163,15 @@ export function AppProvider({ children }: AppProviderProps) {
       },
     },
     typography: {
-      fontFamily: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'].join(','),
+      fontFamily: [
+        'Inter',
+        'system-ui',
+        '-apple-system',
+        'BlinkMacSystemFont',
+        'Segoe UI',
+        'Roboto',
+        'sans-serif',
+      ].join(','),
     },
   })
 
