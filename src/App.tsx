@@ -6,25 +6,35 @@ import { PianoRoll } from './components/PianoRoll'
 import { KeyboardPreviewDialog } from './components/KeyboardPreview'
 import { AbcDialog } from './components/AbcDialog'
 import { KeyboardSimulator } from './components/KeyboardSimulator'
+import { ImportProjectDialog } from './components/ImportProjectDialog'
+import { ClearAllDialog } from './components/ClearAllDialog'
 
 function AppContent() {
-  const { track, setTrack, notes } = useAppContext()
+  const { track, setTrack, notes, meta, setMeta, addToHistory } =
+    useAppContext()
+
   const [abcDialogOpen, setAbcDialogOpen] = useState(false)
-  const [abcDialogMode, setAbcDialogMode] = useState<'import' | 'export'>('export')
+  const [abcDialogMode, setAbcDialogMode] = useState<'import' | 'export'>(
+    'export',
+  )
   const [keyboardPreviewOpen, setKeyboardPreviewOpen] = useState(false)
-  // 默认进入演奏模式
+  const [importProjectOpen, setImportProjectOpen] = useState(false)
+  const [clearAllOpen, setClearAllOpen] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('perform')
-  // 演奏模式下键盘谱显隐（由 Toolbar 按钮控制）
   const [performShowScore, setPerformShowScore] = useState(false)
 
-  const handleClearAll = () => {
+  const handleConfirmClearAll = () => {
+    addToHistory()
     setTrack({ ...track, notes: [] })
+    setMeta({ title: '', composer: '', transcriber: '' })
+    setClearAllOpen(false)
   }
 
-  // 实际音符结束拍（不含额外空拍），用于键盘谱
   const actualEndBeat = useMemo(() => {
     if (notes.length === 0) return 0
-    return Math.ceil(Math.max(...notes.map(n => n.startBeat + n.durationBeats)))
+    return Math.ceil(
+      Math.max(...notes.map(n => n.startBeat + n.durationBeats)),
+    )
   }, [notes])
 
   return (
@@ -34,12 +44,13 @@ function AppContent() {
           setAbcDialogMode('import')
           setAbcDialogOpen(true)
         }}
+        onImportScore={() => setImportProjectOpen(true)}
         onExportAbc={() => {
           setAbcDialogMode('export')
           setAbcDialogOpen(true)
         }}
-        onClearAll={handleClearAll}
-        onOpenKeyboardPreview={() => setKeyboardPreviewOpen(true)}
+        onExportScore={() => setKeyboardPreviewOpen(true)}
+        onRequestClearAll={() => setClearAllOpen(true)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         performShowScore={performShowScore}
@@ -48,7 +59,14 @@ function AppContent() {
 
       <Box sx={{ flexGrow: 1, display: 'flex', overflow: 'hidden' }}>
         {viewMode === 'compose' ? (
-          <Box sx={{ flexGrow: 1, minWidth: 0, bgcolor: 'background.default', p: 1 }}>
+          <Box
+            sx={{
+              flexGrow: 1,
+              minWidth: 0,
+              bgcolor: 'background.default',
+              p: 1,
+            }}
+          >
             <PianoRoll width={800} height={600} />
           </Box>
         ) : (
@@ -69,7 +87,19 @@ function AppContent() {
         onClose={() => setKeyboardPreviewOpen(false)}
         notes={notes}
         beatsPerBar={track.beatsPerBar}
+        bpm={track.bpm}
         totalBeats={actualEndBeat}
+      />
+
+      <ImportProjectDialog
+        open={importProjectOpen}
+        onClose={() => setImportProjectOpen(false)}
+      />
+
+      <ClearAllDialog
+        open={clearAllOpen}
+        onClose={() => setClearAllOpen(false)}
+        onConfirm={handleConfirmClearAll}
       />
     </Box>
   )

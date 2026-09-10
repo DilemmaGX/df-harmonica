@@ -14,14 +14,15 @@ import {
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
 import SaveIcon from '@mui/icons-material/Save'
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import DeleteIcon from '@mui/icons-material/Delete'
 import UndoIcon from '@mui/icons-material/Undo'
 import RedoIcon from '@mui/icons-material/Redo'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness'
-import PreviewIcon from '@mui/icons-material/Preview'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import MusicNoteIcon from '@mui/icons-material/MusicNote'
@@ -38,9 +39,10 @@ export type ViewMode = 'compose' | 'perform'
 
 interface ToolbarProps {
   onImportAbc: () => void
+  onImportScore: () => void
   onExportAbc: () => void
-  onClearAll: () => void
-  onOpenKeyboardPreview: () => void
+  onExportScore: () => void
+  onRequestClearAll: () => void
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
   performShowScore: boolean
@@ -54,17 +56,29 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
 
 export function Toolbar({
   onImportAbc,
+  onImportScore,
   onExportAbc,
-  onClearAll,
-  onOpenKeyboardPreview,
+  onExportScore,
+  onRequestClearAll,
   viewMode,
   onViewModeChange,
   performShowScore,
   onTogglePerformScore,
 }: ToolbarProps) {
   const {
-    track, setTrack, language, setLanguage, themeMode, setThemeMode,
-    isPlaying, setIsPlaying, undo, redo, canUndo, canRedo, addToHistory,
+    track,
+    setTrack,
+    language,
+    setLanguage,
+    themeMode,
+    setThemeMode,
+    isPlaying,
+    setIsPlaying,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    addToHistory,
   } = useAppContext()
   const t = getTranslations(language)
 
@@ -93,23 +107,33 @@ export function Toolbar({
     return <SettingsBrightnessIcon />
   }
 
-  const handleClearAll = () => {
-    addToHistory()
-    onClearAll()
-  }
-
   const isCompose = viewMode === 'compose'
 
   return (
-    <AppBar position="static" color="default" elevation={1} sx={{ backgroundColor: 'background.paper' }}>
-      <MuiToolbar variant="dense" sx={{ gap: 1, px: 2, minHeight: 48, flexWrap: 'nowrap', overflowX: 'auto' }}>
-
+    <AppBar
+      position="static"
+      color="default"
+      elevation={1}
+      sx={{ backgroundColor: 'background.paper' }}
+    >
+      <MuiToolbar
+        variant="dense"
+        sx={{
+          gap: 1,
+          px: 2,
+          minHeight: 48,
+          flexWrap: 'nowrap',
+          overflowX: 'auto',
+        }}
+      >
         {/* 业务切换：演奏在左（默认），谱曲在右 */}
         <ToggleButtonGroup
           size="small"
           exclusive
           value={viewMode}
-          onChange={(_, v: ViewMode | null) => { if (v) onViewModeChange(v) }}
+          onChange={(_, v: ViewMode | null) => {
+            if (v) onViewModeChange(v)
+          }}
           sx={{ mr: 0.5 }}
         >
           <ToggleButton value="perform" sx={{ px: 1.2, py: 0.4 }}>
@@ -159,14 +183,22 @@ export function Toolbar({
 
         <Tooltip title={t.toolbar.undo}>
           <span>
-            <IconButton size="small" onClick={undo} disabled={!canUndo || !isCompose}>
+            <IconButton
+              size="small"
+              onClick={undo}
+              disabled={!canUndo || !isCompose}
+            >
               <UndoIcon />
             </IconButton>
           </span>
         </Tooltip>
         <Tooltip title={t.toolbar.redo}>
           <span>
-            <IconButton size="small" onClick={redo} disabled={!canRedo || !isCompose}>
+            <IconButton
+              size="small"
+              onClick={redo}
+              disabled={!canRedo || !isCompose}
+            >
               <RedoIcon />
             </IconButton>
           </span>
@@ -174,10 +206,22 @@ export function Toolbar({
 
         <Divider orientation="vertical" flexItem />
 
+        {/* 导入 / 导出 组 */}
         <Tooltip title={t.toolbar.importAbc}>
           <span>
             <IconButton size="small" onClick={onImportAbc} disabled={!isCompose}>
               <FileOpenIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={t.toolbar.importScore}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={onImportScore}
+              disabled={!isCompose}
+            >
+              <UploadFileIcon />
             </IconButton>
           </span>
         </Tooltip>
@@ -188,6 +232,17 @@ export function Toolbar({
             </IconButton>
           </span>
         </Tooltip>
+        <Tooltip title={t.toolbar.exportScore}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={onExportScore}
+              disabled={!isCompose}
+            >
+              <PictureAsPdfIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
 
         <Divider orientation="vertical" flexItem />
 
@@ -195,23 +250,11 @@ export function Toolbar({
           <span>
             <IconButton
               size="small"
-              onClick={handleClearAll}
+              onClick={onRequestClearAll}
               color="warning"
               disabled={!isCompose}
             >
               <DeleteIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-
-        <Tooltip title={t.keyboardPreview.title}>
-          <span>
-            <IconButton
-              size="small"
-              onClick={onOpenKeyboardPreview}
-              disabled={!isCompose}
-            >
-              <PreviewIcon />
             </IconButton>
           </span>
         </Tooltip>
@@ -283,7 +326,9 @@ export function Toolbar({
             >
               <CheckIcon
                 fontSize="small"
-                sx={{ visibility: opt.value === language ? 'visible' : 'hidden' }}
+                sx={{
+                  visibility: opt.value === language ? 'visible' : 'hidden',
+                }}
               />
               {opt.label}
             </MenuItem>

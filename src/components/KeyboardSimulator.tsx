@@ -26,6 +26,9 @@ const BASE_MIDI: Record<HarmonicaKey, number> = {
 /** 中键（升半音）指示器用的蓝色，区别于上述三种八度配色 */
 const COLOR_MID = '#0ea5e9'
 
+/** 键盘谱叠加层的高度（含内边距） */
+const SCORE_PANEL_HEIGHT = 320
+
 interface KeyboardSimulatorProps {
   /** 是否显示键盘谱（由 Toolbar 控制） */
   showScore: boolean
@@ -109,7 +112,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
       const k = e.key.toLowerCase() as HarmonicaKey
       if (!SIM_KEYS.includes(k)) return
       e.preventDefault()
-      // 后输入覆盖前输入
       setActiveKey(k)
     }
 
@@ -181,7 +183,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 0 || e.button === 1 || e.button === 2) {
       if (e.button === 1) e.preventDefault()
-      // 同键去重后追加到栈顶 → 栈顶即「后按生效」
       setMouseButtonStack(prev => [...prev.filter(b => b !== e.button), e.button])
     }
   }, [])
@@ -203,12 +204,18 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
         userSelect: 'none',
       }}
     >
-      {/* 谱子区域 */}
+      {/*
+        谱子区域：
+        - 外层只负责展开/收起动画（裁剪）
+        - 内层是固定高度的「舞台」，圆角矩形完全贴合这个舞台高度
+        - 圆角矩形自身 overflow: auto —— 只有乐谱在矩形内滚动，矩形本身不移动
+        - 矩形采用 maxHeight: 100% —— 内容少时自动收缩，内容多时封顶并内部滚动
+      */}
       <Box
         sx={{
           flexShrink: 0,
           overflow: 'hidden',
-          maxHeight: showScore ? 320 : 0,
+          maxHeight: showScore ? SCORE_PANEL_HEIGHT : 0,
           opacity: showScore ? 1 : 0,
           transform: showScore ? 'translateY(0)' : 'translateY(-16px)',
           transition: showScore
@@ -219,32 +226,44 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
       >
         <Box
           sx={{
-            maxHeight: 320,
-            overflow: 'auto',
+            height: SCORE_PANEL_HEIGHT,
+            boxSizing: 'border-box',
             p: 2,
             pt: 1,
             display: 'flex',
             justifyContent: 'center',
+            alignItems: 'flex-start',
           }}
         >
           {totalBeats > 0 ? (
             <Box
               sx={{
-                display: 'inline-block',
+                maxHeight: '100%',
+                maxWidth: '100%',
+                overflow: 'auto',
                 bgcolor: 'background.paper',
                 borderRadius: 1,
-                p: 1,
                 boxShadow: 1,
               }}
             >
-              <KeyboardScore
-                notes={notes}
-                beatsPerBar={track.beatsPerBar}
-                totalBeats={totalBeats}
-                title=""
-                showLegend={false}
-                showBarNumbers={false}
-              />
+              <Box
+                sx={{
+                  p: 1,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  lineHeight: 0,
+                }}
+              >
+                <KeyboardScore
+                  notes={notes}
+                  beatsPerBar={track.beatsPerBar}
+                  totalBeats={totalBeats}
+                  title=""
+                  showLegend={false}
+                  showBarNumbers={false}
+                  bottomPadding={4}
+                />
+              </Box>
             </Box>
           ) : null}
         </Box>
@@ -284,7 +303,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
                   cursor: 'default',
                   bgcolor: 'background.paper',
                   borderRadius: 2,
-                  // 键盘按下 → 外发光（boxShadow 不占布局）
                   boxShadow: isPressed
                     ? '0 0 0 4px rgba(124,58,237,0.45), 0 6px 16px rgba(0,0,0,0.18)'
                     : '0 2px 4px rgba(0,0,0,0.08)',
@@ -293,7 +311,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
                   '&:hover': { cursor: 'default' },
                 }}
               >
-                {/* 简谱：纯文字显示，无底色、无描边、不受鼠标状态影响 */}
                 <Box
                   sx={{
                     fontSize: 30,
@@ -307,7 +324,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
                   {jianpu}
                 </Box>
 
-                {/* 键帽：唯一响应鼠标状态的对象 */}
                 <Box
                   sx={{
                     width: 44,
@@ -316,10 +332,8 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    // 底色：默认紫 / 左键橙 / 右键天蓝
                     bgcolor: capFill,
                     color: '#fff',
-                    // 中键描边：boxShadow 完全外扩；深色→白、浅色→黑
                     boxShadow: isSharp
                       ? `0 0 0 3px ${sharpBorderColor}`
                       : 'none',
@@ -343,7 +357,7 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
           })}
         </Stack>
 
-        {/* 鼠标按钮指示器：保留鼠标形状；左右后按覆盖 → 只有一个亮；中键独立 */}
+        {/* 鼠标按钮指示器 */}
         <Box
           sx={{
             display: 'flex',
@@ -356,7 +370,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
             bgcolor: 'action.hover',
           }}
         >
-          {/* 左键 —— 降八度（橙） */}
           <Box
             sx={{
               width: 26,
@@ -375,7 +388,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
             <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
           </Box>
 
-          {/* 中键 —— 升半音（独立蓝） */}
           <Box
             sx={{
               width: 16,
@@ -401,7 +413,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
             />
           </Box>
 
-          {/* 右键 —— 升八度（天蓝） */}
           <Box
             sx={{
               width: 26,

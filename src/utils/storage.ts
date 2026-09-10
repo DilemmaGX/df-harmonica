@@ -1,4 +1,10 @@
-import type { Language, Note, ThemeMode, Track } from '../types'
+import type {
+  Language,
+  Note,
+  ProjectMeta,
+  ThemeMode,
+  Track,
+} from '../types'
 
 // ============================================================================
 // 常量
@@ -8,10 +14,10 @@ const STORAGE_KEY = 'df-harmonica:state'
 
 /**
  * 当前代码期望的存储版本。
- * - 首次引入持久化时 = 1
- * - 未来新增迁移时 +1
+ * - v1：最初的持久化版本，只包含 track / language / themeMode
+ * - v2：新增 meta（标题 / 作曲者 / 制谱者）
  */
-export const STORAGE_VERSION = 1
+export const STORAGE_VERSION = 2
 
 // ============================================================================
 // 当前版本的存储结构
@@ -19,25 +25,25 @@ export const STORAGE_VERSION = 1
 
 export interface PersistedState {
   track: Track
+  meta: ProjectMeta
   language: Language
   themeMode: ThemeMode
+}
+
+export const DEFAULT_META: ProjectMeta = {
+  title: '',
+  composer: '',
+  transcriber: '',
 }
 
 // ============================================================================
 // 迁移定义
 //
-// 当前 v1 是首个版本，没有任何历史迁移，MIGRATIONS 为空。
-//
-// 未来新增版本（v1 → v2）时的步骤：
-//   1. 写一个 migrationV1toV2，接收旧结构、返回新结构（含 version: 2）
+// 未来新增版本（v2 → v3）时的步骤：
+//   1. 写一个 migrationV2toV3，接收旧结构、返回新结构（含 version: 3）
 //   2. 把它追加到 MIGRATIONS 数组末尾
 //   3. 把 STORAGE_VERSION +1
 //   4. 按需更新 PersistedState 类型
-//
-// 迁移函数必须：
-//   - 输入输出都是「完整对象」
-//   - 返回值包含推进后的 version
-//   - 对缺失 / 异常字段给默认值，不要抛错（抛错会被外层捕获并清空存储）
 // ============================================================================
 
 interface MigrationEntry {
@@ -46,8 +52,25 @@ interface MigrationEntry {
   migrate: (raw: any) => any
 }
 
-/** 迁移链：追加新条目即可，无需修改其他代码 */
-const MIGRATIONS: MigrationEntry[] = []
+/** v1 → v2：新增空的 meta 字段 */
+const migrationV1toV2 = (raw: any): any => {
+  const data = raw?.data && typeof raw.data === 'object' ? raw.data : {}
+  return {
+    version: 2,
+    data: {
+      ...data,
+      meta: {
+        title: '',
+        composer: '',
+        transcriber: '',
+      },
+    },
+  }
+}
+
+const MIGRATIONS: MigrationEntry[] = [
+  { from: 1, to: 2, migrate: migrationV1toV2 },
+]
 
 // ============================================================================
 // 底层 IO
@@ -59,7 +82,6 @@ function readRaw(): any | null {
     if (!raw) return null
     return JSON.parse(raw)
   } catch {
-    // JSON 损坏 → 直接清空，让上层用默认值重新开始
     clearState()
     return null
   }
@@ -69,11 +91,6 @@ function readRaw(): any | null {
 // 版本检测
 // ============================================================================
 
-/**
- * 提取数据版本号。
- * - 有 `version` 数字字段 → 使用它
- * - 没有 → 视为 v1（当前唯一已知的历史版本）
- */
 function detectVersion(raw: any): number {
   if (!raw || typeof raw !== 'object') return 1
   return typeof raw.version === 'number' ? raw.version : 1
@@ -83,14 +100,10 @@ function detectVersion(raw: any): number {
 // 迁移流水线
 // ============================================================================
 
-/**
- * 逐级执行迁移，直到追上 STORAGE_VERSION。
- * 任何异常 / 缺迁移 / 版本不前进 → 清空存储并返回 null。
- */
 function migrate(raw: any): any | null {
   const startVersion = detectVersion(raw)
 
-  // 数据比代码更新（用户降级了应用）→ 清空，避免用旧代码解析新结构
+  // 数据比代码更新 → 清空，避免用旧代码解析新结构
   if (startVersion > STORAGE_VERSION) {
     clearState()
     return null
@@ -102,7 +115,6 @@ function migrate(raw: any): any | null {
   while (version < STORAGE_VERSION) {
     const step = MIGRATIONS.find(m => m.from === version)
     if (!step) {
-      // 找不到该版本的迁移路径 → 无法安全升级 → 清空
       clearState()
       return null
     }
@@ -110,14 +122,12 @@ function migrate(raw: any): any | null {
     try {
       cursor = step.migrate(cursor)
     } catch {
-      // 迁移抛错 → 数据不可修复 → 清空
       clearState()
       return null
     }
 
     const nextVersion = detectVersion(cursor)
     if (nextVersion <= version) {
-      // 迁移没有推进版本 → 视为错误
       clearState()
       return null
     }
@@ -149,9 +159,7 @@ function normalizeTrack(raw: any): Track {
   return {
     notes: Array.isArray(t.notes) ? t.notes.filter(isValidNote) : [],
     bpm:
-      typeof t.bpm === 'number' && t.bpm >= 40 && t.bpm <= 240
-        ? t.bpm
-        : 120,
+      typeof t.bpm === 'number' && t.bpm >= 40 && t.bpm <= 240 ? t.bpm : 120,
     beatsPerBar:
       typeof t.beatsPerBar === 'number' &&
       t.beatsPerBar >= 1 &&
@@ -161,10 +169,15 @@ function normalizeTrack(raw: any): Track {
   }
 }
 
-/**
- * 对迁移后的数据做最终校验，保证返回的类型严格等于 PersistedState。
- * 部分损坏（如 language 字段丢失）会被就地修复，而不是整体丢弃。
- */
+function normalizeMeta(raw: any): ProjectMeta {
+  const m = raw && typeof raw === 'object' ? raw : {}
+  return {
+    title: typeof m.title === 'string' ? m.title : '',
+    composer: typeof m.composer === 'string' ? m.composer : '',
+    transcriber: typeof m.transcriber === 'string' ? m.transcriber : '',
+  }
+}
+
 function normalize(raw: any): PersistedState | null {
   const data = raw?.data
   if (!data || typeof data !== 'object') return null
@@ -173,6 +186,7 @@ function normalize(raw: any): PersistedState | null {
 
   return {
     track: normalizeTrack(data.track),
+    meta: normalizeMeta(data.meta),
     language: data.language === 'en' ? 'en' : 'zh',
     themeMode: themeModes.includes(data.themeMode) ? data.themeMode : 'system',
   }
@@ -182,15 +196,6 @@ function normalize(raw: any): PersistedState | null {
 // 公共 API
 // ============================================================================
 
-/**
- * 从 localStorage 读取状态。自动处理：
- * - JSON 损坏 / 缺迁移 / 迁移异常 → 清空并返回 null
- * - 跨多版本迁移（未来）
- * - 字段规范化与校验
- * - 数据版本高于代码版本时的降级保护
- *
- * 返回 null 时，调用方应使用默认值初始化。
- */
 export function loadState(): PersistedState | null {
   const raw = readRaw()
   if (!raw) return null
@@ -207,10 +212,6 @@ export function loadState(): PersistedState | null {
   return normalized
 }
 
-/**
- * 写入当前状态，附带版本号。
- * 任何 IO 异常（配额满、隐私模式）均静默忽略。
- */
 export function saveState(state: PersistedState): void {
   try {
     localStorage.setItem(
@@ -222,9 +223,6 @@ export function saveState(state: PersistedState): void {
   }
 }
 
-/**
- * 清除持久化数据。
- */
 export function clearState(): void {
   try {
     localStorage.removeItem(STORAGE_KEY)

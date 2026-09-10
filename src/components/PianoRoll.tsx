@@ -59,6 +59,19 @@ interface ClipboardNote {
   isSharp: boolean
 }
 
+/** 判断事件目标是否为可编辑区域（输入框 / 文本域 / 下拉框 / contentEditable） */
+function isEditableTarget(el: EventTarget | null): boolean {
+  const node = el as HTMLElement | null
+  if (!node) return false
+  const tag = node.tagName
+  return (
+    tag === 'INPUT' ||
+    tag === 'TEXTAREA' ||
+    tag === 'SELECT' ||
+    node.isContentEditable
+  )
+}
+
 export function PianoRoll(_props: PianoRollProps) {
   const {
     track,
@@ -259,6 +272,9 @@ export function PianoRoll(_props: PianoRollProps) {
   // 键盘快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 正在输入框 / 文本域 / contentEditable 中打字（含 IME 组合输入）→ 完全让行
+      if (isEditableTarget(e.target) || e.isComposing) return
+
       const isCtrl = e.ctrlKey || e.metaKey
 
       // 空格：播放/停止

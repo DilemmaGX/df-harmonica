@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  FormControlLabel,
   TextField,
   MenuItem,
   Stack,
@@ -25,6 +27,7 @@ interface KeyboardPreviewProps {
   notes: Note[]
   beatsPerBar: number
   totalBeats: number
+  bpm: number
   open: boolean
   onClose: () => void
 }
@@ -33,25 +36,31 @@ export function KeyboardPreviewDialog({
   notes,
   beatsPerBar,
   totalBeats,
+  bpm,
   open,
   onClose,
 }: KeyboardPreviewProps) {
-  const { language } = useAppContext()
+  const { language, meta, setMeta } = useAppContext()
   const t = getTranslations(language)
   const theme = useTheme()
-  const [exportName, setExportName] = useState('harmonica-score')
   const [barsPerLine, setBarsPerLine] = useState(2)
+  const [includeQR, setIncludeQR] = useState(false)
   const [scoreMode, setScoreMode] = useState<'light' | 'dark'>(
     () => theme.palette.mode as 'light' | 'dark',
   )
   const previewRef = useRef<HTMLDivElement>(null)
 
-  // 每次打开时，默认跟随当前主题
   useEffect(() => {
     if (open) {
       setScoreMode(theme.palette.mode as 'light' | 'dark')
     }
   }, [open, theme.palette.mode])
+
+  // 文件名由标题派生；空标题回退到默认名
+  const fileName = (meta.title.trim() || 'harmonica-score').replace(
+    /[\\/:*?"<>|]/g,
+    '_',
+  )
 
   const doExport = (format: 'png' | 'svg') => {
     const el = previewRef.current
@@ -62,7 +71,10 @@ export function KeyboardPreviewDialog({
     const serializer = new XMLSerializer()
     const svgClone = svg.cloneNode(true) as SVGSVGElement
     svgClone.setAttribute('font-family', EXPORT_FONT_FAMILY)
-    const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    const bgRect = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'rect',
+    )
     bgRect.setAttribute('width', '100%')
     bgRect.setAttribute('height', '100%')
     bgRect.setAttribute('fill', bgColor)
@@ -74,7 +86,7 @@ export function KeyboardPreviewDialog({
     if (format === 'svg') {
       const a = document.createElement('a')
       a.href = url
-      a.download = `${exportName}.svg`
+      a.download = `${fileName}.svg`
       a.click()
       URL.revokeObjectURL(url)
     } else {
@@ -92,7 +104,7 @@ export function KeyboardPreviewDialog({
         URL.revokeObjectURL(url)
         const a = document.createElement('a')
         a.href = canvas.toDataURL('image/png')
-        a.download = `${exportName}.png`
+        a.download = `${fileName}.png`
         a.click()
       }
       img.src = url
@@ -103,14 +115,38 @@ export function KeyboardPreviewDialog({
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>{t.keyboardPreview.title}</DialogTitle>
       <DialogContent dividers>
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2, flexWrap: 'wrap' }}>
+        {/* 第一行：乐曲名 / 作曲者 / 制谱者 */}
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 1.5 }}>
           <TextField
             size="small"
-            label={t.dialogs.download}
-            value={exportName}
-            onChange={(e) => setExportName(e.target.value)}
-            sx={{ width: 200 }}
+            label={t.dialogs.title}
+            value={meta.title}
+            onChange={(e) => setMeta({ ...meta, title: e.target.value })}
+            sx={{ width: 220 }}
           />
+          <TextField
+            size="small"
+            label={t.dialogs.composer}
+            value={meta.composer}
+            onChange={(e) => setMeta({ ...meta, composer: e.target.value })}
+            sx={{ width: 180 }}
+          />
+          <TextField
+            size="small"
+            label={t.dialogs.transcriber}
+            value={meta.transcriber}
+            onChange={(e) => setMeta({ ...meta, transcriber: e.target.value })}
+            sx={{ width: 180 }}
+          />
+        </Box>
+
+        {/* 第二行：每行小节数 / 明暗 / 二维码 / 导出按钮 */}
+        <Stack
+          direction="row"
+          spacing={2}
+          alignItems="center"
+          sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }}
+        >
           <TextField
             select
             size="small"
@@ -126,7 +162,6 @@ export function KeyboardPreviewDialog({
             ))}
           </TextField>
 
-          {/* 明暗模式切换 */}
           <ToggleButtonGroup
             size="small"
             exclusive
@@ -143,6 +178,20 @@ export function KeyboardPreviewDialog({
             </ToggleButton>
           </ToggleButtonGroup>
 
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={includeQR}
+                onChange={(e) => setIncludeQR(e.target.checked)}
+              />
+            }
+            label={t.keyboardPreview.includeQR}
+            sx={{ ml: 0 }}
+          />
+
+          <Box sx={{ flexGrow: 1 }} />
+
           <Button
             variant="contained"
             startIcon={<DownloadIcon />}
@@ -151,7 +200,11 @@ export function KeyboardPreviewDialog({
           >
             PNG
           </Button>
-          <Button variant="outlined" onClick={() => doExport('svg')} size="small">
+          <Button
+            variant="outlined"
+            onClick={() => doExport('svg')}
+            size="small"
+          >
             SVG
           </Button>
         </Stack>
@@ -170,9 +223,13 @@ export function KeyboardPreviewDialog({
             notes={notes}
             beatsPerBar={beatsPerBar}
             totalBeats={totalBeats}
+            bpm={bpm}
             barsPerLine={barsPerLine}
-            title={exportName}
+            title={meta.title}
+            composer={meta.composer}
+            transcriber={meta.transcriber}
             mode={scoreMode}
+            includeQR={includeQR}
           />
         </Box>
       </DialogContent>
