@@ -13,6 +13,13 @@ const LINE_PADDING = 20
 export const EXPORT_FONT_FAMILY =
   "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif"
 
+/** 八度层级配色（暖 → 中性 → 冷，对应 更低 → 默认 → 更高） */
+export const NOTE_COLORS = {
+  low: '#ea580c', // 橙色：低八度
+  default: '#7c3aed', // 紫色：默认
+  high: '#0ea5e9', // 天蓝：高八度
+} as const
+
 interface KeyboardScoreProps {
   notes: Note[]
   beatsPerBar: number
@@ -139,15 +146,15 @@ export function KeyboardScore({
   const svgHeight = headerHeight + lines.length * (NOTE_HEIGHT + 12) + 40
 
   const getNoteColor = (note: Note): string => {
-    if (note.octaveShift === -1) return '#dc2626'
-    if (note.octaveShift === 1) return '#16a34a'
-    return '#2563eb'
+    if (note.octaveShift === -1) return NOTE_COLORS.low
+    if (note.octaveShift === 1) return NOTE_COLORS.high
+    return NOTE_COLORS.default
   }
 
   const legendItems = [
-    { label: t.keyboardPreview.leftClick, color: '#dc2626' },
-    { label: t.keyboardPreview.default, color: '#2563eb' },
-    { label: t.keyboardPreview.rightClick, color: '#16a34a' },
+    { label: t.keyboardPreview.leftClick, color: NOTE_COLORS.low },
+    { label: t.keyboardPreview.default, color: NOTE_COLORS.default },
+    { label: t.keyboardPreview.rightClick, color: NOTE_COLORS.high },
   ]
 
   return (
@@ -275,7 +282,7 @@ export function KeyboardScore({
                       stroke={note.isSharp ? c.noteStrokeSharp : c.noteStrokeDefault}
                       strokeWidth={note.isSharp ? 2.5 : 1}
                       rx={3}
-                      opacity={0.9}
+                      opacity={0.92}
                     >
                       <title>{keyLabel}</title>
                     </rect>

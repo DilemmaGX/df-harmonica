@@ -5,6 +5,7 @@ import { getMidiNote, findBestMapping, MIN_MIDI, MAX_MIDI, getJianpuLabel } from
 import { useAppContext } from '../contexts/AppContext'
 import { getTranslations } from '../i18n/translations'
 import { playNotes, stopPlayback, startPreviewNote, stopPreviewNote } from '../utils/audio'
+import { NOTE_COLORS } from './KeyboardScore'
 
 interface PianoRollProps {
   width?: number
@@ -19,6 +20,15 @@ const DEFAULT_PIXELS_PER_BEAT = 80
 const MIN_PIXELS_PER_BEAT = 30
 const MAX_PIXELS_PER_BEAT = 240
 const RESIZE_ZONE = 10
+
+/** hex → rgba 字符串 */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 interface DragState {
   type: 'move' | 'resizeLeft' | 'resizeRight' | 'create' | 'select' | 'deleteSelect' | 'none'
@@ -134,11 +144,20 @@ export function PianoRoll(_props: PianoRollProps) {
   const totalContentWidth = LEFT_PADDING + totalBeats * pixelsPerBeat + 100
   const totalContentHeight = BEAT_HEADER_HEIGHT + totalRows * DEFAULT_ROW_HEIGHT + 80
 
+  // 行背景色：低八度橙、默认紫、高八度天蓝（与键盘谱 / 模拟器三色一致）
   const getRowColor = (midi: number): string => {
-    if (midi === 60 || midi === 72) return isDark ? 'rgba(128,128,128,0.25)' : 'rgba(128,128,128,0.15)'
-    if (midi >= 48 && midi <= 59) return isDark ? 'rgba(220,38,38,0.25)' : 'rgba(239,68,68,0.12)'
-    if (midi >= 61 && midi <= 71) return isDark ? 'rgba(37,99,235,0.25)' : 'rgba(59,130,246,0.12)'
-    if (midi >= 73 && midi <= 85) return isDark ? 'rgba(22,163,74,0.25)' : 'rgba(34,197,94,0.12)'
+    if (midi === 60 || midi === 72) {
+      return isDark ? 'rgba(128,128,128,0.25)' : 'rgba(128,128,128,0.15)'
+    }
+    if (midi >= 48 && midi <= 59) {
+      return hexToRgba(NOTE_COLORS.low, isDark ? 0.25 : 0.12)
+    }
+    if (midi >= 61 && midi <= 71) {
+      return hexToRgba(NOTE_COLORS.default, isDark ? 0.25 : 0.12)
+    }
+    if (midi >= 73 && midi <= 85) {
+      return hexToRgba(NOTE_COLORS.high, isDark ? 0.25 : 0.12)
+    }
     return isDark ? 'rgba(128,128,128,0.1)' : 'rgba(128,128,128,0.05)'
   }
 
@@ -714,7 +733,7 @@ export function PianoRoll(_props: PianoRollProps) {
       width: w,
       height: h,
       background: backgroundColor,
-      border: isSelected ? '2px solid #7c3aed' : '1px solid rgba(0,0,0,0.4)',
+      border: isSelected ? `2px solid ${NOTE_COLORS.default}` : '1px solid rgba(0,0,0,0.4)',
       borderRadius: 4,
       cursor: hoverCursor,
       userSelect: 'none',
@@ -779,7 +798,7 @@ export function PianoRoll(_props: PianoRollProps) {
                 ? '#fff'
                 : (isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'),
               background: isPreview
-                ? 'rgba(124,58,237,0.9)'
+                ? hexToRgba(NOTE_COLORS.default, 0.9)
                 : (isDark ? '#18181b' : '#fafafa'),
               fontFamily: 'Inter, system-ui, sans-serif',
               userSelect: 'none',
@@ -850,8 +869,12 @@ export function PianoRoll(_props: PianoRollProps) {
     top: Math.min(selectionRect.y1, selectionRect.y2),
     width: Math.abs(selectionRect.x2 - selectionRect.x1),
     height: Math.abs(selectionRect.y2 - selectionRect.y1),
-    background: selectionMode === 'deleteSelect' ? 'rgba(239,68,68,0.2)' : 'rgba(124,58,237,0.15)',
-    border: selectionMode === 'deleteSelect' ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(124,58,237,0.5)',
+    background: selectionMode === 'deleteSelect'
+      ? 'rgba(239,68,68,0.2)'
+      : hexToRgba(NOTE_COLORS.default, 0.15),
+    border: selectionMode === 'deleteSelect'
+      ? '1px solid rgba(239,68,68,0.5)'
+      : `1px solid ${hexToRgba(NOTE_COLORS.default, 0.5)}`,
     pointerEvents: 'none',
     zIndex: 30,
   } : null
@@ -917,12 +940,12 @@ export function PianoRoll(_props: PianoRollProps) {
             const y = midiToY(midi)
             const w = Math.max(4, note.durationBeats * pixelsPerBeat - 2)
             return (
-              <div key={note.id} style={{ position: 'absolute', left: x + 1, top: y + 1, width: w, height: DEFAULT_ROW_HEIGHT - 2, background: 'rgba(124,58,237,0.4)', border: '1px dashed #7c3aed', borderRadius: 4, pointerEvents: 'none', zIndex: 25 }} />
+              <div key={note.id} style={{ position: 'absolute', left: x + 1, top: y + 1, width: w, height: DEFAULT_ROW_HEIGHT - 2, background: hexToRgba(NOTE_COLORS.default, 0.4), border: `1px dashed ${NOTE_COLORS.default}`, borderRadius: 4, pointerEvents: 'none', zIndex: 25 }} />
             )
           })}
           {selectionStyle && <div style={selectionStyle} />}
           {isPlaying && (
-            <div style={{ position: 'absolute', left: playheadX, top: BEAT_HEADER_HEIGHT, width: 2, height: totalContentHeight - BEAT_HEADER_HEIGHT, background: '#7c3aed', pointerEvents: 'none', zIndex: 20 }} />
+            <div style={{ position: 'absolute', left: playheadX, top: BEAT_HEADER_HEIGHT, width: 2, height: totalContentHeight - BEAT_HEADER_HEIGHT, background: NOTE_COLORS.default, pointerEvents: 'none', zIndex: 20 }} />
           )}
 
           {/* 3. 左侧音高标签：水平方向 sticky */}

@@ -6,7 +6,7 @@ import { useAppContext } from '../contexts/AppContext'
 import { getJianpuLabel, KEY_DISPLAY } from '../utils/noteMapping'
 import { startKeyNote, stopKeyNote } from '../utils/audio'
 import type { HarmonicaKey } from '../types'
-import { KeyboardScore } from './KeyboardScore'
+import { KeyboardScore, NOTE_COLORS } from './KeyboardScore'
 
 /** 与钢琴卷帘 / 键盘谱一致的 8 个基础键 */
 const SIM_KEYS: HarmonicaKey[] = ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',']
@@ -23,11 +23,8 @@ const BASE_MIDI: Record<HarmonicaKey, number> = {
   ',': 72,
 }
 
-/** 与键盘谱音符块完全一致的三色 */
-const COLOR_LOW = '#dc2626' // 红：降八度
-const COLOR_DEFAULT = '#2563eb' // 蓝：默认（与键盘谱默认音符块一致）
-const COLOR_HIGH = '#16a34a' // 绿：升八度
-const COLOR_MID = '#0ea5e9' // 蓝：鼠标中键指示器
+/** 中键（升半音）指示器用的蓝色，区别于上述三种八度配色 */
+const COLOR_MID = '#0ea5e9'
 
 interface KeyboardSimulatorProps {
   /** 是否显示键盘谱（由 Toolbar 控制） */
@@ -67,10 +64,10 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
   // 键帽底色 = 当前八度方向（与键盘谱音符块配色一致；中键不改底色）
   const capFill =
     octaveDir === 'left'
-      ? COLOR_LOW
+      ? NOTE_COLORS.low
       : octaveDir === 'right'
-        ? COLOR_HIGH
-        : COLOR_DEFAULT
+        ? NOTE_COLORS.high
+        : NOTE_COLORS.default
 
   const getMidi = useCallback(
     (key: HarmonicaKey) => BASE_MIDI[key] + octaveShift * 12 + (isSharp ? 1 : 0),
@@ -319,7 +316,7 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    // 底色：默认蓝 / 左键红 / 右键绿
+                    // 底色：默认紫 / 左键橙 / 右键天蓝
                     bgcolor: capFill,
                     color: '#fff',
                     // 中键描边：boxShadow 完全外扩；深色→白、浅色→黑
@@ -359,15 +356,15 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
             bgcolor: 'action.hover',
           }}
         >
-          {/* 左键 —— 降八度 */}
+          {/* 左键 —— 降八度（橙） */}
           <Box
             sx={{
               width: 26,
               height: 30,
               borderRadius: '8px 2px 2px 8px',
               border: '2px solid',
-              borderColor: octaveDir === 'left' ? COLOR_LOW : 'divider',
-              bgcolor: octaveDir === 'left' ? COLOR_LOW : 'transparent',
+              borderColor: octaveDir === 'left' ? NOTE_COLORS.low : 'divider',
+              bgcolor: octaveDir === 'left' ? NOTE_COLORS.low : 'transparent',
               color: octaveDir === 'left' ? '#fff' : 'text.disabled',
               display: 'flex',
               alignItems: 'center',
@@ -378,7 +375,7 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
             <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
           </Box>
 
-          {/* 中键 —— 升半音 */}
+          {/* 中键 —— 升半音（独立蓝） */}
           <Box
             sx={{
               width: 16,
@@ -404,15 +401,15 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
             />
           </Box>
 
-          {/* 右键 —— 升八度 */}
+          {/* 右键 —— 升八度（天蓝） */}
           <Box
             sx={{
               width: 26,
               height: 30,
               borderRadius: '2px 8px 8px 2px',
               border: '2px solid',
-              borderColor: octaveDir === 'right' ? COLOR_HIGH : 'divider',
-              bgcolor: octaveDir === 'right' ? COLOR_HIGH : 'transparent',
+              borderColor: octaveDir === 'right' ? NOTE_COLORS.high : 'divider',
+              bgcolor: octaveDir === 'right' ? NOTE_COLORS.high : 'transparent',
               color: octaveDir === 'right' ? '#fff' : 'text.disabled',
               display: 'flex',
               alignItems: 'center',

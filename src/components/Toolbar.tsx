@@ -1,6 +1,15 @@
 import {
-  AppBar, Toolbar as MuiToolbar, IconButton, TextField, Box, Divider,
-  Tooltip, Select, MenuItem, FormControl, ToggleButton, ToggleButtonGroup,
+  AppBar,
+  Toolbar as MuiToolbar,
+  IconButton,
+  TextField,
+  Box,
+  Divider,
+  Tooltip,
+  MenuItem,
+  Menu,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
@@ -17,9 +26,13 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import MusicNoteIcon from '@mui/icons-material/MusicNote'
 import PianoIcon from '@mui/icons-material/Piano'
+import LanguageIcon from '@mui/icons-material/Language'
+import CheckIcon from '@mui/icons-material/Check'
+import { useState } from 'react'
 import { useAppContext } from '../contexts/AppContext'
 import { getTranslations } from '../i18n/translations'
 import { playNotes, stopPlayback } from '../utils/audio'
+import type { Language } from '../types'
 
 export type ViewMode = 'compose' | 'perform'
 
@@ -33,6 +46,11 @@ interface ToolbarProps {
   performShowScore: boolean
   onTogglePerformScore: () => void
 }
+
+const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
+  { value: 'zh', label: '中文' },
+  { value: 'en', label: 'English' },
+]
 
 export function Toolbar({
   onImportAbc,
@@ -49,6 +67,9 @@ export function Toolbar({
     isPlaying, setIsPlaying, undo, redo, canUndo, canRedo, addToHistory,
   } = useAppContext()
   const t = getTranslations(language)
+
+  const [langMenuAnchor, setLangMenuAnchor] = useState<HTMLElement | null>(null)
+  const langMenuOpen = Boolean(langMenuAnchor)
 
   const handlePlay = () => {
     if (isPlaying) {
@@ -108,7 +129,7 @@ export function Toolbar({
         {/* 演奏模式：键盘谱显隐按钮 */}
         {viewMode === 'perform' && (
           <>
-            <Tooltip title={performShowScore ? t.keyboardPreview.title : t.keyboardPreview.title}>
+            <Tooltip title={t.keyboardPreview.title}>
               <IconButton
                 size="small"
                 onClick={onTogglePerformScore}
@@ -230,18 +251,44 @@ export function Toolbar({
           variant="outlined"
         />
 
-        <FormControl size="small" sx={{ minWidth: 90 }}>
-          <Select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}
+        {/* 语言选择：地球图标 → 下拉菜单 */}
+        <Tooltip title={t.settings.language}>
+          <IconButton
             size="small"
-            variant="outlined"
-            sx={{ fontSize: '0.875rem' }}
+            onClick={(e) => setLangMenuAnchor(e.currentTarget)}
+            color="inherit"
+            aria-label={t.settings.language}
+            aria-haspopup="menu"
           >
-            <MenuItem value="zh">中文</MenuItem>
-            <MenuItem value="en">English</MenuItem>
-          </Select>
-        </FormControl>
+            <LanguageIcon />
+          </IconButton>
+        </Tooltip>
+        <Menu
+          anchorEl={langMenuAnchor}
+          open={langMenuOpen}
+          onClose={() => setLangMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{ paper: { sx: { minWidth: 140, mt: 0.5 } } }}
+        >
+          {LANGUAGE_OPTIONS.map(opt => (
+            <MenuItem
+              key={opt.value}
+              selected={opt.value === language}
+              onClick={() => {
+                setLanguage(opt.value)
+                setLangMenuAnchor(null)
+              }}
+              sx={{ gap: 1 }}
+            >
+              <CheckIcon
+                fontSize="small"
+                sx={{ visibility: opt.value === language ? 'visible' : 'hidden' }}
+              />
+              {opt.label}
+            </MenuItem>
+          ))}
+        </Menu>
 
         <Tooltip title={t.settings.theme}>
           <IconButton size="small" onClick={cycleTheme} color="inherit">
