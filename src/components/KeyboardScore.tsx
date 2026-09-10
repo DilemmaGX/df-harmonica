@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useTheme } from '@mui/material'
-import type { Note } from '../types'
-import { getMidiNote, getSmartMapping, KEY_DISPLAY } from '../utils/noteMapping'
+import type { Note, HarmonicaKey, OctaveShift } from '../types'
+import { getMidiNote, getAllMappingsForMidi, KEY_DISPLAY } from '../utils/noteMapping'
 import { useAppContext } from '../contexts/AppContext'
 import { getTranslations } from '../i18n/translations'
 
@@ -19,6 +19,107 @@ export const NOTE_COLORS = {
   default: '#7c3aed', // 紫色：默认
   high: '#0ea5e9', // 天蓝：高八度
 } as const
+
+type Mapping = { key: HarmonicaKey; octaveShift: OctaveShift; isSharp: boolean }
+
+/**
+ * 全局最优的智能映射。
+ * 目标：最小化鼠标状态（八度方向 + 半音开关）的切换次数。
+ * 使用动态规划在整个音符序列上寻找总切换代价最小的映射方案。
+ */
+function computeSmartMappings(notes: Note[]): Note[] {
+  if (notes.length === 0) return []
+
+  // 为每个音符计算所有可能的映射
+  const allMappings: Mapping[][] = notes.map(note => {
+    const midi = getMidiNote(note.key, note.octaveShift, note.isSharp)
+    const mappings = getAllMappingsForMidi(midi)
+    if (mappings.length === 0) {
+      // 回退到原始映射
+      return [{ key: note.key, octaveShift: note.octaveShift, isSharp: note.isSharp }]
+    }
+    return mappings
+  })
+
+  interface DPEntry {
+    cost: number
+    prevIndex: number
+    mapping: Mapping
+  }
+
+  const dp: DPEntry[][] = []
+
+  // 第一个音符：基础偏好（默认八度、自然音）作为轻微初始代价
+  const firstMappings = allMappings[0]
+  const firstEntries: DPEntry[] = firstMappings.map(m => {
+    let cost = 0
+    if (m.octaveShift === 0) cost -= 0.5
+    if (!m.isSharp) cost -= 0.5
+    return { cost, prevIndex: -1, mapping: m }
+  })
+  dp.push(firstEntries)
+
+  // 后续音符：转移代价 = 鼠标状态变化 + 按键连续性奖励
+  for (let i = 1; i < notes.length; i++) {
+    const prevEntries = dp[i - 1]
+    const currMappings = allMappings[i]
+    const currEntries: DPEntry[] = currMappings.map(currMapping => {
+      let bestCost = Infinity
+      let bestPrevIndex = -1
+
+      for (let j = 0; j < prevEntries.length; j++) {
+        const prev = prevEntries[j]
+        const prevMapping = prev.mapping
+
+        // 鼠标状态变化：八度方向变化 + 半音状态变化
+        const octaveChanged = currMapping.octaveShift !== prevMapping.octaveShift ? 1 : 0
+        const sharpChanged = currMapping.isSharp !== prevMapping.isSharp ? 1 : 0
+        let transitionCost = octaveChanged + sharpChanged
+
+        // 按键连续性奖励（小权重，用于打破平局）
+        if (currMapping.key === prevMapping.key) {
+          transitionCost -= 0.1
+        }
+
+        const totalCost = prev.cost + transitionCost
+        if (totalCost < bestCost) {
+          bestCost = totalCost
+          bestPrevIndex = j
+        }
+      }
+
+      return { cost: bestCost, prevIndex: bestPrevIndex, mapping: currMapping }
+    })
+    dp.push(currEntries)
+  }
+
+  // 回溯找到最优路径
+  const lastEntries = dp[dp.length - 1]
+  let bestLastIndex = 0
+  let bestLastCost = Infinity
+  for (let i = 0; i < lastEntries.length; i++) {
+    if (lastEntries[i].cost < bestLastCost) {
+      bestLastCost = lastEntries[i].cost
+      bestLastIndex = i
+    }
+  }
+
+  const result: Note[] = new Array(notes.length)
+  let currIndex = bestLastIndex
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const entry = dp[i][currIndex]
+    const originalNote = notes[i]
+    result[i] = {
+      ...originalNote,
+      key: entry.mapping.key,
+      octaveShift: entry.mapping.octaveShift,
+      isSharp: entry.mapping.isSharp,
+    }
+    currIndex = entry.prevIndex
+  }
+
+  return result
+}
 
 interface KeyboardScoreProps {
   notes: Note[]
@@ -80,27 +181,9 @@ export function KeyboardScore({
     [notes],
   )
 
+  // 使用全局最优的动态规划进行智能映射
   const smartMappedNotes = useMemo(() => {
-    let previousKey: string | null = null
-    let previousOctaveShift: number | null = null
-    return sortedNotes.map(note => {
-      const midi = getMidiNote(note.key, note.octaveShift, note.isSharp)
-      const smart = getSmartMapping(midi, {
-        previousKey: previousKey as any,
-        previousOctaveShift: previousOctaveShift as any,
-      })
-      if (smart) {
-        previousKey = smart.key
-        previousOctaveShift = smart.octaveShift
-        return {
-          ...note,
-          key: smart.key,
-          octaveShift: smart.octaveShift,
-          isSharp: smart.isSharp,
-        }
-      }
-      return note
-    })
+    return computeSmartMappings(sortedNotes)
   }, [sortedNotes])
 
   const blocks = useMemo(() => {
