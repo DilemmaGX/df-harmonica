@@ -21,6 +21,9 @@ const MIN_PIXELS_PER_BEAT = 30
 const MAX_PIXELS_PER_BEAT = 240
 const RESIZE_ZONE = 10
 
+/** 起始小节指示器颜色（翠绿，与播放头紫色区分） */
+const PLAY_START_MARKER_COLOR = '#10b981'
+
 /** hex → rgba 字符串 */
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace('#', '')
@@ -82,6 +85,8 @@ export function PianoRoll(_props: PianoRollProps) {
     addToHistory,
     undo,
     redo,
+    playStartBeat,
+    setPlayStartBeat,
   } = useAppContext()
   const t = getTranslations(language)
   const theme = useTheme()
@@ -100,6 +105,7 @@ export function PianoRoll(_props: PianoRollProps) {
   const [ghostMode, setGhostMode] = useState(false)
   const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(null)
   const [previewMidi, setPreviewMidi] = useState<number | null>(null)
+  const [isDraggingMarker, setIsDraggingMarker] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const dragStateRef = useRef<DragState>({
@@ -115,8 +121,10 @@ export function PianoRoll(_props: PianoRollProps) {
     originalNotes: [],
   })
   const playbackStartTimeRef = useRef<number | null>(null)
+  const playbackStartBeatRef = useRef(0)
   const animationFrameRef = useRef<number | null>(null)
   const [playheadBeat, setPlayheadBeat] = useState(0)
+  const markerDragRef = useRef(false)
 
   // 监听容器尺寸
   useEffect(() => {
@@ -174,15 +182,18 @@ export function PianoRoll(_props: PianoRollProps) {
     return isDark ? 'rgba(128,128,128,0.1)' : 'rgba(128,128,128,0.05)'
   }
 
-  // 播放进度
+  // 播放进度：从 playStartBeat 起算
   useEffect(() => {
     if (isPlaying) {
+      playbackStartBeatRef.current = playStartBeat
       playbackStartTimeRef.current = performance.now()
       const animate = () => {
-        if (!isPlaying) return
-        const elapsed = (performance.now() - playbackStartTimeRef.current!) / 1000
+        if (playbackStartTimeRef.current === null) return
+        const elapsed =
+          (performance.now() - playbackStartTimeRef.current) / 1000
         const secondsPerBeat = 60 / track.bpm
-        const currentBeat = elapsed / secondsPerBeat
+        const currentBeat =
+          playbackStartBeatRef.current + elapsed / secondsPerBeat
         setPlayheadBeat(currentBeat)
         if (currentBeat > totalBeats) {
           setIsPlaying(false)
@@ -194,7 +205,7 @@ export function PianoRoll(_props: PianoRollProps) {
       animationFrameRef.current = requestAnimationFrame(animate)
     } else {
       playbackStartTimeRef.current = null
-      setPlayheadBeat(0)
+      setPlayheadBeat(playStartBeat)
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
         animationFrameRef.current = null
@@ -205,7 +216,7 @@ export function PianoRoll(_props: PianoRollProps) {
         cancelAnimationFrame(animationFrameRef.current)
       }
     }
-  }, [isPlaying, track.bpm, totalBeats, setIsPlaying])
+  }, [isPlaying, track.bpm, totalBeats, setIsPlaying, playStartBeat])
 
   const midiToY = useCallback((midi: number) => {
     return BEAT_HEADER_HEIGHT + (MAX_MIDI - midi) * DEFAULT_ROW_HEIGHT
@@ -277,14 +288,19 @@ export function PianoRoll(_props: PianoRollProps) {
 
       const isCtrl = e.ctrlKey || e.metaKey
 
-      // 空格：播放/停止
+      // 空格：播放/停止（从起始小节指示器所在拍开始）
       if (e.code === 'Space' && !e.repeat && !isCtrl) {
         e.preventDefault()
         if (isPlaying) {
           stopPlayback()
           setIsPlaying(false)
         } else {
-          playNotes(track.notes, track.bpm, () => setIsPlaying(false))
+          playNotes(
+            track.notes,
+            track.bpm,
+            () => setIsPlaying(false),
+            playStartBeat,
+          )
           setIsPlaying(true)
         }
         return
@@ -359,7 +375,7 @@ export function PianoRoll(_props: PianoRollProps) {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isPlaying, track.notes, track.bpm, setIsPlaying, undo, redo, selectedNoteIds, clipboard, ghostMode, addToHistory, setNotes])
+  }, [isPlaying, track.notes, track.bpm, setIsPlaying, undo, redo, selectedNoteIds, clipboard, ghostMode, addToHistory, setNotes, playStartBeat])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
@@ -383,6 +399,15 @@ export function PianoRoll(_props: PianoRollProps) {
       x: clientX - rect.left + container.scrollLeft,
       y: clientY - rect.top + container.scrollTop,
     }
+  }, [])
+
+  // 起始小节指示器：按下开始拖拽
+  const handleMarkerMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    markerDragRef.current = true
+    setIsDraggingMarker(true)
   }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -545,6 +570,17 @@ export function PianoRoll(_props: PianoRollProps) {
   }, [ghostMode, clipboard, selectedNoteIds, track.notes, clientToContent, xToBeat, yToMidi, findNoteAt, beatToX, pixelsPerBeat, checkOverlap, addToHistory, setNotes])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    // 起始小节指示器拖拽：吸附到最近小节开头
+    if (markerDragRef.current) {
+      const { x } = clientToContent(e.clientX, e.clientY)
+      const bpb = track.beatsPerBar || 4
+      const maxBarIndex = Math.max(0, Math.round(totalBeats / bpb) - 1)
+      const rawBar = xToBeat(x) / bpb
+      const barIndex = Math.max(0, Math.min(maxBarIndex, Math.round(rawBar)))
+      setPlayStartBeat(barIndex * bpb)
+      return
+    }
+
     const drag = dragStateRef.current
     const { x, y } = clientToContent(e.clientX, e.clientY)
 
@@ -635,9 +671,16 @@ export function PianoRoll(_props: PianoRollProps) {
       const newDuration = Math.max(0.25, drag.originalDuration - deltaBeat)
       setNotes(prev => prev.map(n => n.id === drag.noteId ? { ...n, startBeat: snappedStart, durationBeats: Math.round(newDuration * 4) / 4 } : n))
     }
-  }, [ghostMode, clientToContent, findNoteAt, beatToX, pixelsPerBeat, setNotes, selectedNoteIds])
+  }, [ghostMode, clientToContent, findNoteAt, beatToX, pixelsPerBeat, setNotes, selectedNoteIds, track.beatsPerBar, totalBeats, xToBeat, setPlayStartBeat])
 
   const handleMouseUp = useCallback(() => {
+    // 起始小节指示器拖拽结束
+    if (markerDragRef.current) {
+      markerDragRef.current = false
+      setIsDraggingMarker(false)
+      return
+    }
+
     const drag = dragStateRef.current
     if ((drag.type === 'select' || drag.type === 'deleteSelect') && selectionRect) {
       const x1 = Math.min(selectionRect.x1, selectionRect.x2)
@@ -918,6 +961,9 @@ export function PianoRoll(_props: PianoRollProps) {
 
   const bgColor = isDark ? '#18181b' : '#fafafa'
 
+  // 起始小节指示器显示的小节号（1 起）
+  const markerBarNumber = playStartBeat / (track.beatsPerBar || 4) + 1
+
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
       <div
@@ -960,9 +1006,8 @@ export function PianoRoll(_props: PianoRollProps) {
             )
           })}
           {selectionStyle && <div style={selectionStyle} />}
-          {isPlaying && (
-            <div style={{ position: 'absolute', left: playheadX, top: BEAT_HEADER_HEIGHT, width: 2, height: totalContentHeight - BEAT_HEADER_HEIGHT, background: NOTE_COLORS.default, pointerEvents: 'none', zIndex: 20 }} />
-          )}
+          {/* 播放头：停止时停在起始小节位置，播放中随进度移动 */}
+          <div style={{ position: 'absolute', left: playheadX, top: BEAT_HEADER_HEIGHT, width: 2, height: totalContentHeight - BEAT_HEADER_HEIGHT, background: NOTE_COLORS.default, pointerEvents: 'none', zIndex: 20 }} />
 
           {/* 3. 左侧音高标签：水平方向 sticky */}
           <div
@@ -1029,6 +1074,40 @@ export function PianoRoll(_props: PianoRollProps) {
                 pointerEvents: 'auto',
               }}
             />
+          </div>
+
+          {/* 6. 起始小节指示器：可拖动、自动吸附到小节开头 */}
+          <div
+            onMouseDown={handleMarkerMouseDown}
+            title={t.pianoRoll.playStartBar}
+            style={{
+              position: 'absolute',
+              left: beatToX(playStartBeat),
+              top: 2,
+              height: BEAT_HEADER_HEIGHT - 6,
+              minWidth: 26,
+              padding: '0 6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: PLAY_START_MARKER_COLOR,
+              color: '#fff',
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: 'Inter, system-ui, sans-serif',
+              borderRadius: 4,
+              boxSizing: 'border-box',
+              cursor: isDraggingMarker ? 'grabbing' : 'grab',
+              userSelect: 'none',
+              pointerEvents: 'auto',
+              zIndex: 40,
+              boxShadow: isDraggingMarker
+                ? '0 0 0 3px rgba(16,185,129,0.35), 0 4px 10px rgba(0,0,0,0.3)'
+                : '0 2px 5px rgba(0,0,0,0.2)',
+              transition: 'box-shadow 0.15s ease',
+            }}
+          >
+            {markerBarNumber}
           </div>
 
         </div>

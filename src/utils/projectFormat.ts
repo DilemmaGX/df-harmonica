@@ -122,8 +122,6 @@ export function parseProjectFile(text: string): ProjectFile | null {
 //   notes：逗号分隔，每个音符形如 `<start36>.<dur36>.<kom36>`
 //     start / dur：单位为十六分音符（beat*4）的 base36 整数
 //     kom = keyIndex * 6 + (octaveShift + 1) * 2 + isSharp
-//     即 keyIndex ∈ [0,7]，octaveShift ∈ [-1,1]，isSharp ∈ {0,1}
-//     整体范围 0..47，一个 base36 字符即可承载
 // ---------------------------------------------------------------------------
 
 const B64_ALPHABET =

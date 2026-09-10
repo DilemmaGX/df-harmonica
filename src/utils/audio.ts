@@ -25,7 +25,21 @@ function getAudioContext(): AudioContext {
   return audioContext
 }
 
-export function playNotes(notes: Note[], bpm: number, onEnd?: () => void): void {
+/**
+ * 播放音符序列。
+ *
+ * @param notes      要播放的音符
+ * @param bpm        速度
+ * @param onEnd      播放结束时的回调
+ * @param startBeat  从该拍开始播放（默认 0 = 开头）。起点之前的音符会被跳过，
+ *                   跨起点的长音会被裁剪，只播放起点之后的余下部分。
+ */
+export function playNotes(
+  notes: Note[],
+  bpm: number,
+  onEnd?: () => void,
+  startBeat = 0,
+): void {
   stopPlayback()
   const ctx = getAudioContext()
   if (ctx.state === 'suspended') {
@@ -34,13 +48,23 @@ export function playNotes(notes: Note[], bpm: number, onEnd?: () => void): void 
 
   const secondsPerBeat = 60 / bpm
   const startOffset = 0.1
-  let maxEndTime = 0
+  let maxEndTime = ctx.currentTime + startOffset
 
   for (const note of notes) {
+    const noteEnd = note.startBeat + note.durationBeats
+    if (noteEnd <= startBeat) continue
+
+    const audibleStart = Math.max(note.startBeat, startBeat)
+    const audibleDuration = noteEnd - audibleStart
+    if (audibleDuration <= 0) continue
+
     const midi = getMidiNote(note.key, note.octaveShift, note.isSharp)
     const frequency = getMidiFrequency(midi)
-    const startTime = ctx.currentTime + startOffset + note.startBeat * secondsPerBeat
-    const duration = note.durationBeats * secondsPerBeat
+    const startTime =
+      ctx.currentTime +
+      startOffset +
+      (audibleStart - startBeat) * secondsPerBeat
+    const duration = audibleDuration * secondsPerBeat
 
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
@@ -55,7 +79,10 @@ export function playNotes(notes: Note[], bpm: number, onEnd?: () => void): void 
 
     gain.gain.setValueAtTime(0, startTime)
     gain.gain.linearRampToValueAtTime(0.35, startTime + 0.015)
-    gain.gain.setValueAtTime(0.35, Math.max(startTime + 0.015, startTime + duration * 0.7))
+    gain.gain.setValueAtTime(
+      0.35,
+      Math.max(startTime + 0.015, startTime + duration * 0.7),
+    )
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
     osc.connect(filter)
@@ -70,7 +97,10 @@ export function playNotes(notes: Note[], bpm: number, onEnd?: () => void): void 
   }
 
   if (onEnd) {
-    const timer = setTimeout(onEnd, (maxEndTime - ctx.currentTime) * 1000 + 200)
+    const timer = setTimeout(
+      onEnd,
+      (maxEndTime - ctx.currentTime) * 1000 + 200,
+    )
     currentSources.push({
       stop: () => clearTimeout(timer),
     })

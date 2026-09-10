@@ -40,6 +40,7 @@ export const translations = {
       octave: 'Octave',
       sharp: 'Sharp',
       duration: 'Duration',
+      playStartBar: 'Play from this bar (drag to move)',
     },
     keyboardSimulator: {
       title: 'Live Performance',
@@ -66,7 +67,7 @@ export const translations = {
     },
     importProject: {
       title: 'Import Score',
-      hint: 'Supports project .json files, ABC notation (.abc / .txt), DF Harmonica QR payload text, and score images (.png / .jpg / .svg) containing the QR code.',
+      hint: 'Supports project .json files, ABC notation (.abc / .txt), and score images (.png / .jpg / .svg) containing the QR code.',
       chooseFile: 'Click or drop a file here',
       parseError: 'Unrecognized file format',
       readError: 'Failed to read file',
@@ -158,6 +159,7 @@ export const translations = {
       octave: '八度',
       sharp: '半音',
       duration: '时值',
+      playStartBar: '播放起始小节（可拖动）',
     },
     keyboardSimulator: {
       title: '实时演奏',
@@ -184,7 +186,7 @@ export const translations = {
     },
     importProject: {
       title: '导入乐谱',
-      hint: '支持工程 .json、ABC 记谱法（.abc / .txt）、DF Harmonica 二维码文本，以及包含二维码的乐谱图片（.png / .jpg / .svg）。',
+      hint: '支持工程 .json、ABC 记谱法（.abc / .txt），以及包含二维码的乐谱图片（.png / .jpg / .svg）。',
       chooseFile: '点击选择或拖入文件',
       parseError: '无法识别文件格式',
       readError: '读取文件失败',

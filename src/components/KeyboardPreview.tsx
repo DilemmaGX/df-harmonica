@@ -44,7 +44,7 @@ export function KeyboardPreviewDialog({
   const t = getTranslations(language)
   const theme = useTheme()
   const [barsPerLine, setBarsPerLine] = useState(2)
-  const [includeQR, setIncludeQR] = useState(false)
+  const [includeQR, setIncludeQR] = useState(true)
   const [scoreMode, setScoreMode] = useState<'light' | 'dark'>(
     () => theme.palette.mode as 'light' | 'dark',
   )
@@ -56,7 +56,6 @@ export function KeyboardPreviewDialog({
     }
   }, [open, theme.palette.mode])
 
-  // 文件名由标题派生；空标题回退到默认名
   const fileName = (meta.title.trim() || 'harmonica-score').replace(
     /[\\/:*?"<>|]/g,
     '_',
@@ -115,7 +114,6 @@ export function KeyboardPreviewDialog({
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>{t.keyboardPreview.title}</DialogTitle>
       <DialogContent dividers>
-        {/* 第一行：乐曲名 / 作曲者 / 制谱者 */}
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 1.5 }}>
           <TextField
             size="small"
@@ -140,7 +138,6 @@ export function KeyboardPreviewDialog({
           />
         </Box>
 
-        {/* 第二行：每行小节数 / 明暗 / 二维码 / 导出按钮 */}
         <Stack
           direction="row"
           spacing={2}

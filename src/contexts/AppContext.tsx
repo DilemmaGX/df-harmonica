@@ -35,6 +35,9 @@ interface AppState {
   setSelectedNoteId: (id: string | null) => void
   isPlaying: boolean
   setIsPlaying: (playing: boolean) => void
+  /** 播放起始拍（小节开头），默认 0 = 1 号小节开头 */
+  playStartBeat: number
+  setPlayStartBeat: (beat: number) => void
   undo: () => void
   redo: () => void
   canUndo: boolean
@@ -85,6 +88,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const [errors, setErrors] = useState<ValidationError[]>([])
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [playStartBeat, setPlayStartBeat] = useState(0)
 
   // ---------------- 撤销 / 重做 ----------------
   // 历史用 ref 保存，避免闭包过期；对外只暴露布尔状态用于渲染。
@@ -247,6 +251,8 @@ export function AppProvider({ children }: AppProviderProps) {
         setSelectedNoteId,
         isPlaying,
         setIsPlaying,
+        playStartBeat,
+        setPlayStartBeat,
         undo,
         redo,
         canUndo,

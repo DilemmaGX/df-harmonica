@@ -20,17 +20,13 @@ export const EXPORT_FONT_FAMILY =
 
 /** 八度层级配色（暖 → 中性 → 冷，对应 更低 → 默认 → 更高） */
 export const NOTE_COLORS = {
-  low: '#ea580c', // 橙色：低八度
-  default: '#7c3aed', // 紫色：默认
-  high: '#0ea5e9', // 天蓝：高八度
+  low: '#ea580c',
+  default: '#7c3aed',
+  high: '#0ea5e9',
 } as const
 
 type Mapping = { key: HarmonicaKey; octaveShift: OctaveShift; isSharp: boolean }
 
-/**
- * 全局最优的智能映射。
- * 使用动态规划在整个音符序列上寻找总切换代价最小的映射方案。
- */
 function computeSmartMappings(notes: Note[]): Note[] {
   if (notes.length === 0) return []
 
@@ -137,7 +133,7 @@ interface KeyboardScoreProps {
   showLegend?: boolean
   showBarNumbers?: boolean
   bottomPadding?: number
-  /** 是否在标题下方嵌入工程源文件二维码 */
+  /** 是否在标题下方嵌入紧凑编码二维码 */
   includeQR?: boolean
 }
 
@@ -246,7 +242,7 @@ export function KeyboardScore({
 
   const svgWidth = lineWidth + 40
 
-  // ---------------- 二维码 ----------------
+  // ---------------- 二维码（紧凑编码） ----------------
   const qrMatrix = useMemo(() => {
     if (!includeQR) return null
     const project = createProjectFile(
@@ -257,9 +253,9 @@ export function KeyboardScore({
     return createQRMatrix(encoded)
   }, [includeQR, notes, bpm, beatsPerBar, title, composer, transcriber])
 
-  // 二维码显示尺寸：小巧，且不随矩阵大小线性膨胀
+  // 二维码显示尺寸：明显放大以提升扫描成功率与信息容量
   const qrDisplaySize = qrMatrix
-    ? Math.min(72, Math.max(52, qrMatrix.size * 1.1))
+    ? Math.min(160, Math.max(110, qrMatrix.size * 2.0))
     : 0
 
   // ---------------- 页眉布局 ----------------
@@ -294,7 +290,6 @@ export function KeyboardScore({
       cursorY += TITLE_LINE_HEIGHT
     }
 
-    // 二维码与作曲者/制谱者共享同一水平区段
     if (hasQR) {
       qrRenderX = 10
       qrRenderY = cursorY + 4
@@ -316,7 +311,6 @@ export function KeyboardScore({
 
       cursorY = qrRenderY + qrDisplaySize + 6
     } else if (hasComposer || hasTranscriber) {
-      // 没有二维码：作曲者/制谱者堆叠在右上角
       if (hasComposer) {
         composerY = cursorY + 11
         cursorY += CREDIT_LINE_HEIGHT + 1
@@ -416,18 +410,17 @@ export function KeyboardScore({
         </text>
       )}
 
-      {/* 二维码：标题下方，与作曲者/制谱者同一水平区段的左侧 */}
       {qrMatrix && (
         <g>
           <rect
-            x={qrRenderX - 2}
-            y={qrRenderY - 2}
-            width={qrDisplaySize + 4}
-            height={qrDisplaySize + 4}
+            x={qrRenderX - 3}
+            y={qrRenderY - 3}
+            width={qrDisplaySize + 6}
+            height={qrDisplaySize + 6}
             fill="#ffffff"
             stroke={c.qrBorder}
             strokeWidth={1}
-            rx={3}
+            rx={4}
           />
           <path
             d={qrMatrixToPath(qrMatrix, qrRenderX, qrRenderY, qrDisplaySize)}

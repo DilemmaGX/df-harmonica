@@ -79,6 +79,7 @@ export function Toolbar({
     canUndo,
     canRedo,
     addToHistory,
+    playStartBeat,
   } = useAppContext()
   const t = getTranslations(language)
 
@@ -90,7 +91,12 @@ export function Toolbar({
       stopPlayback()
       setIsPlaying(false)
     } else {
-      playNotes(track.notes, track.bpm, () => setIsPlaying(false))
+      playNotes(
+        track.notes,
+        track.bpm,
+        () => setIsPlaying(false),
+        playStartBeat,
+      )
       setIsPlaying(true)
     }
   }

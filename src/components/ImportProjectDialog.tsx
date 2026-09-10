@@ -13,7 +13,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { useAppContext } from '../contexts/AppContext'
 import { getTranslations } from '../i18n/translations'
 import { parseProjectFile, decodeProjectFromQR } from '../utils/projectFormat'
-import { scanImageForQR } from '../utils/imageQRScanner'
+import { extractProjectFromImageFile } from '../utils/imageQRScanner'
 import { abcToNotes } from '../utils/abcConverter'
 import type { ProjectFile } from '../types'
 
@@ -81,24 +81,17 @@ export function ImportProjectDialog({
 
     // ---------------- 图片路径：扫描二维码 ----------------
     if (isImageFile(file)) {
-      let qrText: string | null = null
+      let project: ProjectFile | null = null
       try {
-        qrText = await scanImageForQR(file)
+        project = await extractProjectFromImageFile(file)
       } catch {
         setError(t.importProject.readError)
         resetFileInput()
         return
       }
 
-      if (!qrText) {
-        setError(t.importProject.noQRFound)
-        resetFileInput()
-        return
-      }
-
-      const project = decodeProjectFromQR(qrText)
       if (!project) {
-        setError(t.importProject.qrInvalid)
+        setError(t.importProject.noQRFound)
         resetFileInput()
         return
       }
