@@ -150,3 +150,16 @@ npm run lint
 
 The production bundle is deployed to GitHub Pages via the workflow in
 `.github/workflows/deploy.yml` on every push to `main`.
+
+## Example
+
+```
+X:1
+T:Random Tune
+M:4/4
+L:1/8
+Q:1/4=160
+K:C
+e2 e2 e e A2 z e e g e e A2
+d2 d2 d A c d e e d c e3
+```
