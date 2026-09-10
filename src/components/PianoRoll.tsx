@@ -963,6 +963,8 @@ export function PianoRoll(_props: PianoRollProps) {
 
   // 起始小节指示器显示的小节号（1 起）
   const markerBarNumber = playStartBeat / (track.beatsPerBar || 4) + 1
+  // 指示器的水平位置（跟随内容横向滚动）
+  const markerLeft = beatToX(playStartBeat)
 
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
@@ -1076,38 +1078,55 @@ export function PianoRoll(_props: PianoRollProps) {
             />
           </div>
 
-          {/* 6. 起始小节指示器：可拖动、自动吸附到小节开头 */}
+          {/*
+            6. 起始小节指示器：
+               - 外层全尺寸绝对定位容器负责建立 sticky 边界
+               - 内层元素使用 position: sticky; top: 2，因此垂直滚动时固定在顶部
+               - 水平方向通过 marginLeft 定位，随内容一起水平滚动
+          */}
           <div
-            onMouseDown={handleMarkerMouseDown}
-            title={t.pianoRoll.playStartBar}
             style={{
               position: 'absolute',
-              left: beatToX(playStartBeat),
-              top: 2,
-              height: BEAT_HEADER_HEIGHT - 6,
-              minWidth: 26,
-              padding: '0 6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: PLAY_START_MARKER_COLOR,
-              color: '#fff',
-              fontSize: 11,
-              fontWeight: 700,
-              fontFamily: 'Inter, system-ui, sans-serif',
-              borderRadius: 4,
-              boxSizing: 'border-box',
-              cursor: isDraggingMarker ? 'grabbing' : 'grab',
-              userSelect: 'none',
-              pointerEvents: 'auto',
+              top: 0,
+              left: 0,
+              width: totalContentWidth,
+              height: totalContentHeight,
+              pointerEvents: 'none',
               zIndex: 40,
-              boxShadow: isDraggingMarker
-                ? '0 0 0 3px rgba(16,185,129,0.35), 0 4px 10px rgba(0,0,0,0.3)'
-                : '0 2px 5px rgba(0,0,0,0.2)',
-              transition: 'box-shadow 0.15s ease',
             }}
           >
-            {markerBarNumber}
+            <div
+              onMouseDown={handleMarkerMouseDown}
+              title={t.pianoRoll.playStartBar}
+              style={{
+                position: 'sticky',
+                top: 2,
+                marginLeft: markerLeft,
+                width: 'fit-content',
+                height: BEAT_HEADER_HEIGHT - 6,
+                minWidth: 26,
+                padding: '0 6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: PLAY_START_MARKER_COLOR,
+                color: '#fff',
+                fontSize: 11,
+                fontWeight: 700,
+                fontFamily: 'Inter, system-ui, sans-serif',
+                borderRadius: 4,
+                boxSizing: 'border-box',
+                cursor: isDraggingMarker ? 'grabbing' : 'grab',
+                userSelect: 'none',
+                pointerEvents: 'auto',
+                boxShadow: isDraggingMarker
+                  ? '0 0 0 3px rgba(16,185,129,0.35), 0 4px 10px rgba(0,0,0,0.3)'
+                  : '0 2px 5px rgba(0,0,0,0.2)',
+                transition: 'box-shadow 0.15s ease',
+              }}
+            >
+              {markerBarNumber}
+            </div>
           </div>
 
         </div>
