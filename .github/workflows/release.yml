@@ -5,27 +5,25 @@ name: Release
 #
 # The maintainer decides:
 #   - when to cut a release
-#   - what version tag it should have (e.g. v0.2.0)
-#   - whether it is a draft (invisible to the public)
-#   - whether it is a pre-release (visible but marked "beta")
+#   - the version tag (e.g. v0.2.0, or v0.2.0-rc.1 for a pre-release)
+#   - whether the release is public or a draft
 #
-# The workflow then:
-#   1. Checks out the chosen ref
-#   2. Builds the standalone Windows .exe via `npm run exe`
-#   3. Bakes the version into `tauri.conf.json` (so the exe metadata matches)
-#   4. Creates the GitHub Release with the requested tag
-#   5. Uploads `df-harmonica.exe` as a release asset
+# Automatic behaviour:
+#   - If `prerelease` is checked AND the version has no suffix, `-beta` is appended.
+#   - If the version already carries a suffix (e.g. `-rc.1`), it is treated as
+#     a pre-release automatically, regardless of the checkbox.
+#   - The uploaded executable is named `df-harmonica-<semver>.exe`.
 # ---------------------------------------------------------------------------
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. v0.2.0). Must be unique — the tag will be created.'
+        description: 'Version tag (e.g. v0.2.0 or v0.2.0-rc.1). Must be unique — the tag will be created.'
         required: true
         type: string
       prerelease:
-        description: 'Mark as pre-release (visible, but flagged "beta")'
+        description: 'Mark as pre-release (adds "-beta" if no suffix is present)'
         required: false
         type: boolean
         default: false
@@ -68,13 +66,55 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # -----------------------------------------------------------------------
+      # Compute the final tag, semver and artifact name.
+      #
+      # Semver rules:
+      #   - "v0.2.0"        + prerelease off  -> tag "v0.2.0",        artifact "df-harmonica-0.2.0.exe"
+      #   - "v0.2.0"        + prerelease on   -> tag "v0.2.0-beta",   artifact "df-harmonica-0.2.0-beta.exe"
+      #   - "v0.2.0-rc.1"   + prerelease any  -> tag "v0.2.0-rc.1",   artifact "df-harmonica-0.2.0-rc.1.exe"
+      #     (any version already carrying a "-suffix" is auto-marked as a pre-release)
+      # -----------------------------------------------------------------------
+      - name: Compute release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $raw = "${{ inputs.version }}".Trim()
+          if ([string]::IsNullOrWhiteSpace($raw)) {
+            Write-Error "version input is empty"
+            exit 1
+          }
+
+          $semver = $raw.TrimStart('v')
+          $hasSuffix = $semver.Contains('-')
+          $isPre = '${{ inputs.prerelease }}' -eq 'true'
+
+          if ($hasSuffix) {
+            # Any "-suffix" in semver means prerelease, regardless of the checkbox.
+            $isPre = $true
+          } elseif ($isPre) {
+            # Checkbox on but no suffix: add "-beta".
+            $semver = "$semver-beta"
+          }
+
+          $tag = "v$semver"
+          $artifact = "df-harmonica-$semver.exe"
+
+          Write-Host "Raw input:     $raw"
+          Write-Host "Has suffix:    $hasSuffix"
+          Write-Host "Is prerelease: $isPre"
+          Write-Host "Final tag:     $tag"
+          Write-Host "Semver:        $semver"
+          Write-Host "Artifact:      $artifact"
+
+          "tag=$tag"                 >> $env:GITHUB_OUTPUT
+          "semver=$semver"           >> $env:GITHUB_OUTPUT
+          "artifact=$artifact"       >> $env:GITHUB_OUTPUT
+          "prerelease=$isPre"        >> $env:GITHUB_OUTPUT
+
       - name: Stamp version into tauri.conf.json
         shell: pwsh
         run: |
-          $tag = "${{ inputs.version }}"
-          $version = $tag.TrimStart('v')
-          Write-Host "Release tag:  $tag"
-          Write-Host "Semver:       $version"
           node -e "
             const fs = require('fs');
             const v = process.argv[1];
@@ -82,27 +122,34 @@ jobs:
             const json = JSON.parse(fs.readFileSync(path, 'utf8'));
             json.version = v;
             fs.writeFileSync(path, JSON.stringify(json, null, 2) + '\n');
-          " $version
+          " "${{ steps.meta.outputs.semver }}"
           Get-Content src-tauri/tauri.conf.json | Select-String '"version"'
 
       - name: Build standalone Windows .exe
         run: npm run exe
 
-      - name: Verify artifact exists
+      - name: Rename artifact to include version
         shell: pwsh
         run: |
-          if (-not (Test-Path "dist/df-harmonica.exe")) {
-            Write-Error "dist/df-harmonica.exe was not produced."
+          $src = 'dist/df-harmonica.exe'
+          $dst = 'dist/${{ steps.meta.outputs.artifact }}'
+          if (-not (Test-Path $src)) {
+            Write-Error "$src was not produced."
             exit 1
           }
-          $size = (Get-Item "dist/df-harmonica.exe").Length / 1MB
-          Write-Host ("Artifact size: {0:N2} MB" -f $size)
+          Move-Item -Force $src $dst
+          $size = (Get-Item $dst).Length / 1MB
+          Write-Host ("Artifact: {0} ({1:N2} MB)" -f $dst, $size)
 
       - name: Compose release notes
-        id: notes
         shell: pwsh
         run: |
-          $tag = "${{ inputs.version }}"
+          $tag = "${{ steps.meta.outputs.tag }}"
+          $artifact = "${{ steps.meta.outputs.artifact }}"
+          $isPre = "${{ steps.meta.outputs.prerelease }}" -eq 'true'
+
+          $title = if ($isPre) { "$tag (pre-release)" } else { $tag }
+
           $body = @"
           ## DF Harmonica $tag
 
@@ -110,7 +157,7 @@ jobs:
 
           ### What's included
 
-          - ``df-harmonica.exe`` — single-file portable build (Windows, x64)
+          - ``$artifact`` — single-file portable build (Windows, x64)
           - No installer required. Double-click to run.
 
           ### Notes
@@ -121,23 +168,25 @@ jobs:
 
           See the full commit history for the complete list of changes since the previous release.
           "@
-          # Remove leading indentation added by the heredoc
+          # Strip the 10-space indentation added by the heredoc.
           $body = $body -replace '(?m)^\s{10}', ''
           $body | Out-File -FilePath release-notes.md -Encoding utf8
+
+          "title=$title" >> $env:GITHUB_OUTPUT
+        id: notes
 
       - name: Create GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = "${{ inputs.version }}"
           $args = @(
-            'release', 'create', $tag,
-            'dist/df-harmonica.exe',
-            '--title', $tag,
+            'release', 'create', '${{ steps.meta.outputs.tag }}',
+            'dist/${{ steps.meta.outputs.artifact }}',
+            '--title', '${{ steps.notes.outputs.title }}',
             '--notes-file', 'release-notes.md'
           )
-          if ('${{ inputs.prerelease }}' -eq 'true') { $args += '--prerelease' }
-          if ('${{ inputs.draft }}'      -eq 'true') { $args += '--draft' }
+          if ('${{ steps.meta.outputs.prerelease }}' -eq 'true') { $args += '--prerelease' }
+          if ('${{ inputs.draft }}' -eq 'true') { $args += '--draft' }
           gh @args
-          Write-Host "Release $tag created."
+          Write-Host "Release ${{ steps.meta.outputs.tag }} created."
