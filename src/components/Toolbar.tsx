@@ -17,6 +17,7 @@ import FileOpenIcon from '@mui/icons-material/FileOpen'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import SaveIcon from '@mui/icons-material/Save'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
+import AudiotrackIcon from '@mui/icons-material/Audiotrack'
 import DeleteIcon from '@mui/icons-material/Delete'
 import UndoIcon from '@mui/icons-material/Undo'
 import RedoIcon from '@mui/icons-material/Redo'
@@ -43,6 +44,7 @@ interface ToolbarProps {
   onImportScore: () => void
   onExportAbc: () => void
   onExportScore: () => void
+  onExportMidi: () => void
   onRequestClearAll: () => void
   onOpenExamples: () => void
   viewMode: ViewMode
@@ -61,6 +63,7 @@ export function Toolbar({
   onImportScore,
   onExportAbc,
   onExportScore,
+  onExportMidi,
   onRequestClearAll,
   onOpenExamples,
   viewMode,
@@ -253,6 +256,17 @@ export function Toolbar({
           <span>
             <IconButton size="small" onClick={onExportAbc} disabled={!isCompose}>
               <SaveIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={t.toolbar.exportMidi}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={onExportMidi}
+              disabled={!isCompose}
+            >
+              <AudiotrackIcon />
             </IconButton>
           </span>
         </Tooltip>

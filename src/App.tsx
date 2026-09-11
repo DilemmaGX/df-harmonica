@@ -11,6 +11,7 @@ import { ClearAllDialog } from './components/ClearAllDialog'
 import { ExamplesDialog } from './components/ExamplesDialog'
 import { LoadProjectConfirmDialog } from './components/LoadProjectConfirmDialog'
 import { abcToNotes } from './utils/abcConverter'
+import { downloadMidi } from './utils/midiExporter'
 import type { ProjectFile } from './types'
 import type { ExampleProject } from './data/examples'
 
@@ -19,6 +20,7 @@ function AppContent() {
     track,
     setTrack,
     notes,
+    meta,
     setMeta,
     addToHistory,
     setPlayStartBeat,
@@ -41,6 +43,10 @@ function AppContent() {
     setTrack({ ...track, notes: [] })
     setMeta({ title: '', composer: '', transcriber: '' })
     setClearAllOpen(false)
+  }
+
+  const handleExportMidi = () => {
+    downloadMidi(track, meta)
   }
 
   const applyProject = (project: ProjectFile) => {
@@ -110,6 +116,7 @@ function AppContent() {
           setAbcDialogOpen(true)
         }}
         onExportScore={() => setKeyboardPreviewOpen(true)}
+        onExportMidi={handleExportMidi}
         onRequestClearAll={() => setClearAllOpen(true)}
         onOpenExamples={() => setExamplesOpen(true)}
         viewMode={viewMode}
