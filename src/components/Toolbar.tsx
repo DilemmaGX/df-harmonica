@@ -29,6 +29,7 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote'
 import PianoIcon from '@mui/icons-material/Piano'
 import LanguageIcon from '@mui/icons-material/Language'
 import CheckIcon from '@mui/icons-material/Check'
+import LibraryMusicIcon from '@mui/icons-material/LibraryMusic'
 import { useState } from 'react'
 import { useAppContext } from '../contexts/AppContext'
 import { getTranslations } from '../i18n/translations'
@@ -43,6 +44,7 @@ interface ToolbarProps {
   onExportAbc: () => void
   onExportScore: () => void
   onRequestClearAll: () => void
+  onOpenExamples: () => void
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
   performShowScore: boolean
@@ -60,6 +62,7 @@ export function Toolbar({
   onExportAbc,
   onExportScore,
   onRequestClearAll,
+  onOpenExamples,
   viewMode,
   onViewModeChange,
   performShowScore,
@@ -206,6 +209,21 @@ export function Toolbar({
               disabled={!canRedo || !isCompose}
             >
               <RedoIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+
+        <Divider orientation="vertical" flexItem />
+
+        {/* 内置示例曲谱 */}
+        <Tooltip title={t.toolbar.examples}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={onOpenExamples}
+              disabled={!isCompose}
+            >
+              <LibraryMusicIcon />
             </IconButton>
           </span>
         </Tooltip>

@@ -17,6 +17,7 @@ export const translations = {
       undo: 'Undo',
       redo: 'Redo',
       clear: 'Clear All',
+      examples: 'Example Scores',
       bpm: 'BPM',
       beatsPerBar: 'Beats/Bar',
       totalBeats: 'Total Beats',
@@ -65,6 +66,17 @@ export const translations = {
       transcriber: 'Transcriber',
       includeQR: 'Include source QR',
     },
+    examples: {
+      title: 'Example Scores',
+      hint: 'Click an example to load it into the editor. If the current project is not empty, a confirmation dialog will appear.',
+    },
+    loadProjectDialog: {
+      title: 'Load Project',
+      message:
+        'Current project is not empty. Loading will overwrite its contents.',
+      cancel: 'Cancel',
+      confirm: 'Load',
+    },
     importProject: {
       title: 'Import Score',
       hint: 'Supports project .json files, ABC notation (.abc / .txt), and score images (.png / .jpg / .svg) containing the QR code.',
@@ -75,7 +87,7 @@ export const translations = {
       qrInvalid: 'The QR code does not contain a valid project payload',
       confirmOverwrite:
         'Current project is not empty. Importing will overwrite its contents.',
-      overwriteDetail: 'About to import: {name} ({notes} notes)',
+      overwriteDetail: 'About to load: {name} ({notes} notes)',
       confirm: 'Confirm Import',
       back: 'Back',
       untitled: 'Untitled Project',
@@ -136,6 +148,7 @@ export const translations = {
       undo: '撤销',
       redo: '重做',
       clear: '清空全部',
+      examples: '内置示例曲谱',
       bpm: 'BPM',
       beatsPerBar: '每小节拍数',
       totalBeats: '总拍数',
@@ -184,6 +197,16 @@ export const translations = {
       transcriber: '制谱者',
       includeQR: '附带源文件二维码',
     },
+    examples: {
+      title: '内置示例曲谱',
+      hint: '点击示例即可加载到编辑器。若当前工程非空，将弹出确认对话框。',
+    },
+    loadProjectDialog: {
+      title: '加载工程',
+      message: '当前工程非空，加载将覆盖现有内容。',
+      cancel: '取消',
+      confirm: '加载',
+    },
     importProject: {
       title: '导入乐谱',
       hint: '支持工程 .json、ABC 记谱法（.abc / .txt），以及包含二维码的乐谱图片（.png / .jpg / .svg）。',
@@ -193,7 +216,7 @@ export const translations = {
       noQRFound: '图片中未检测到二维码',
       qrInvalid: '二维码内容不是有效的工程数据',
       confirmOverwrite: '当前工程非空，导入将覆盖现有内容。',
-      overwriteDetail: '即将导入：{name}（{notes} 个音符）',
+      overwriteDetail: '即将加载：{name}（{notes} 个音符）',
       confirm: '确认导入',
       back: '返回',
       untitled: '未命名工程',

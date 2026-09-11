@@ -8,10 +8,21 @@ import { AbcDialog } from './components/AbcDialog'
 import { KeyboardSimulator } from './components/KeyboardSimulator'
 import { ImportProjectDialog } from './components/ImportProjectDialog'
 import { ClearAllDialog } from './components/ClearAllDialog'
+import { ExamplesDialog } from './components/ExamplesDialog'
+import { LoadProjectConfirmDialog } from './components/LoadProjectConfirmDialog'
+import { abcToNotes } from './utils/abcConverter'
+import type { ProjectFile } from './types'
+import type { ExampleProject } from './data/examples'
 
 function AppContent() {
-  const { track, setTrack, notes, setMeta, addToHistory } =
-    useAppContext()
+  const {
+    track,
+    setTrack,
+    notes,
+    setMeta,
+    addToHistory,
+    setPlayStartBeat,
+  } = useAppContext()
 
   const [abcDialogOpen, setAbcDialogOpen] = useState(false)
   const [abcDialogMode, setAbcDialogMode] = useState<'import' | 'export'>(
@@ -20,6 +31,8 @@ function AppContent() {
   const [keyboardPreviewOpen, setKeyboardPreviewOpen] = useState(false)
   const [importProjectOpen, setImportProjectOpen] = useState(false)
   const [clearAllOpen, setClearAllOpen] = useState(false)
+  const [examplesOpen, setExamplesOpen] = useState(false)
+  const [pendingProject, setPendingProject] = useState<ProjectFile | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('perform')
   const [performShowScore, setPerformShowScore] = useState(false)
 
@@ -28,6 +41,53 @@ function AppContent() {
     setTrack({ ...track, notes: [] })
     setMeta({ title: '', composer: '', transcriber: '' })
     setClearAllOpen(false)
+  }
+
+  const applyProject = (project: ProjectFile) => {
+    addToHistory()
+    setTrack(project.track)
+    setMeta(project.meta)
+    setPlayStartBeat(0)
+  }
+
+  /**
+   * 请求加载工程：
+   * - 若当前工程为空 → 直接应用
+   * - 若当前工程已有内容 → 暂存 pending，弹出确认对话框
+   */
+  const requestLoadProject = (project: ProjectFile) => {
+    if (notes.length > 0) {
+      setPendingProject(project)
+    } else {
+      applyProject(project)
+    }
+  }
+
+  const handleSelectExample = (example: ExampleProject) => {
+    const result = abcToNotes(example.abc)
+    if (!result) return
+    const project: ProjectFile = {
+      format: 'df-harmonica-project',
+      version: 1,
+      meta: {
+        title: example.title,
+        composer: '',
+        transcriber: '',
+      },
+      track: {
+        notes: result.notes,
+        bpm: result.bpm,
+        beatsPerBar: result.beatsPerBar,
+      },
+    }
+    setExamplesOpen(false)
+    requestLoadProject(project)
+  }
+
+  const handleConfirmLoad = () => {
+    if (!pendingProject) return
+    applyProject(pendingProject)
+    setPendingProject(null)
   }
 
   const actualEndBeat = useMemo(() => {
@@ -51,6 +111,7 @@ function AppContent() {
         }}
         onExportScore={() => setKeyboardPreviewOpen(true)}
         onRequestClearAll={() => setClearAllOpen(true)}
+        onOpenExamples={() => setExamplesOpen(true)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         performShowScore={performShowScore}
@@ -94,6 +155,20 @@ function AppContent() {
       <ImportProjectDialog
         open={importProjectOpen}
         onClose={() => setImportProjectOpen(false)}
+      />
+
+      <ExamplesDialog
+        open={examplesOpen}
+        onClose={() => setExamplesOpen(false)}
+        onSelect={handleSelectExample}
+      />
+
+      <LoadProjectConfirmDialog
+        open={pendingProject !== null}
+        onClose={() => setPendingProject(null)}
+        onConfirm={handleConfirmLoad}
+        projectName={pendingProject?.meta.title ?? ''}
+        noteCount={pendingProject?.track.notes.length ?? 0}
       />
 
       <ClearAllDialog
