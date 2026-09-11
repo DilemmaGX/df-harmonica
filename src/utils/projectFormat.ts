@@ -70,10 +70,6 @@ export function createProjectFile(track: Track, meta: ProjectMeta): ProjectFile 
   }
 }
 
-export function serializeProjectFile(project: ProjectFile): string {
-  return JSON.stringify(project, null, 2)
-}
-
 export function parseProjectFile(text: string): ProjectFile | null {
   try {
     const data = JSON.parse(text)

@@ -6,24 +6,15 @@ import {
   getAllMappingsForMidi,
   KEY_DISPLAY,
 } from '../utils/noteMapping'
-import { useAppContext } from '../contexts/AppContext'
+import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
 import { createProjectFile, encodeProjectForQR } from '../utils/projectFormat'
 import { createQRMatrix, qrMatrixToPath } from '../utils/qrCode'
+import { NOTE_COLORS, EXPORT_FONT_FAMILY } from '../constants/score'
 
 const NOTE_HEIGHT = 40
 const MIN_NOTE_WIDTH = 24
 const LINE_PADDING = 20
-
-export const EXPORT_FONT_FAMILY =
-  "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, Helvetica, sans-serif"
-
-/** 八度层级配色（暖 → 中性 → 冷，对应 更低 → 默认 → 更高） */
-export const NOTE_COLORS = {
-  low: '#ea580c',
-  default: '#7c3aed',
-  high: '#0ea5e9',
-} as const
 
 type Mapping = { key: HarmonicaKey; octaveShift: OctaveShift; isSharp: boolean }
 
@@ -242,7 +233,6 @@ export function KeyboardScore({
 
   const svgWidth = lineWidth + 40
 
-  // ---------------- 二维码（紧凑编码） ----------------
   const qrMatrix = useMemo(() => {
     if (!includeQR) return null
     const project = createProjectFile(
@@ -253,12 +243,10 @@ export function KeyboardScore({
     return createQRMatrix(encoded)
   }, [includeQR, notes, bpm, beatsPerBar, title, composer, transcriber])
 
-  // 二维码显示尺寸：明显放大以提升扫描成功率与信息容量
   const qrDisplaySize = qrMatrix
     ? Math.min(160, Math.max(110, qrMatrix.size * 2.0))
     : 0
 
-  // ---------------- 页眉布局 ----------------
   const hasTitle = title.trim().length > 0
   const hasComposer = composer.trim().length > 0
   const hasTranscriber = transcriber.trim().length > 0
@@ -295,8 +283,7 @@ export function KeyboardScore({
       qrRenderY = cursorY + 4
       const qrCenterY = qrRenderY + qrDisplaySize / 2
 
-      const creditRows =
-        (hasComposer ? 1 : 0) + (hasTranscriber ? 1 : 0)
+      const creditRows = (hasComposer ? 1 : 0) + (hasTranscriber ? 1 : 0)
       const creditsHeight = creditRows * CREDIT_LINE_HEIGHT
       let creditCursorY = qrCenterY - creditsHeight / 2
 
@@ -338,7 +325,6 @@ export function KeyboardScore({
     return NOTE_COLORS.default
   }
 
-  // ---------------- 图例 ----------------
   const legendFontSize = 10
   const swatchSize = 10
   const swatchTextGap = 5

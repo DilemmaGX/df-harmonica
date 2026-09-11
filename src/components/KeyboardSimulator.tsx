@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Paper, Stack, useTheme } from '@mui/material'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp'
-import { useAppContext } from '../contexts/AppContext'
+import { useAppContext } from '../contexts/useAppContext'
 import { getJianpuLabel, KEY_DISPLAY } from '../utils/noteMapping'
 import { startKeyNote, stopKeyNote } from '../utils/audio'
+import { isEditableTarget } from '../utils/dom'
+import { NOTE_COLORS } from '../constants/score'
 import type { HarmonicaKey } from '../types'
-import { KeyboardScore, NOTE_COLORS } from './KeyboardScore'
+import { KeyboardScore } from './KeyboardScore'
 
 /** 与钢琴卷帘 / 键盘谱一致的 8 个基础键 */
 const SIM_KEYS: HarmonicaKey[] = ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',']
@@ -23,14 +25,13 @@ const BASE_MIDI: Record<HarmonicaKey, number> = {
   ',': 72,
 }
 
-/** 中键（升半音）指示器用的蓝色，区别于上述三种八度配色 */
+/** 中键（升半音）指示器用的蓝色，区别于三种八度配色 */
 const COLOR_MID = '#0ea5e9'
 
 /** 键盘谱叠加层的高度（含内边距） */
 const SCORE_PANEL_HEIGHT = 320
 
 interface KeyboardSimulatorProps {
-  /** 是否显示键盘谱（由 Toolbar 控制） */
   showScore: boolean
 }
 
@@ -39,19 +40,15 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
 
-  // 中键描边色：浅色→黑，深色→白
   const sharpBorderColor = isDark ? '#ffffff' : '#000000'
 
-  // 单音模式：仅保留最后一个按下的键（后输入覆盖前输入）
   const [activeKey, setActiveKey] = useState<HarmonicaKey | null>(null)
-  // 鼠标按键栈：栈顶为「后按生效」；中键（1）独立叠加在栈中
   const [mouseButtonStack, setMouseButtonStack] = useState<number[]>([])
 
   const currentIdRef = useRef<string | null>(null)
 
   const isMiddlePressed = mouseButtonStack.includes(1)
 
-  // 左右键「后按覆盖」：从栈顶向下找第一个 0 / 2
   const octaveDir = useMemo<'left' | 'right' | null>(() => {
     for (let i = mouseButtonStack.length - 1; i >= 0; i--) {
       const b = mouseButtonStack[i]
@@ -64,7 +61,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
   const octaveShift = octaveDir === 'left' ? -1 : octaveDir === 'right' ? 1 : 0
   const isSharp = isMiddlePressed
 
-  // 键帽底色 = 当前八度方向（与键盘谱音符块配色一致；中键不改底色）
   const capFill =
     octaveDir === 'left'
       ? NOTE_COLORS.low
@@ -73,7 +69,8 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
         : NOTE_COLORS.default
 
   const getMidi = useCallback(
-    (key: HarmonicaKey) => BASE_MIDI[key] + octaveShift * 12 + (isSharp ? 1 : 0),
+    (key: HarmonicaKey) =>
+      BASE_MIDI[key] + octaveShift * 12 + (isSharp ? 1 : 0),
     [octaveShift, isSharp],
   )
 
@@ -92,20 +89,7 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
     return Math.ceil(Math.max(...notes.map(n => n.startBeat + n.durationBeats)))
   }, [notes])
 
-  // ------- 键盘事件 -------
   useEffect(() => {
-    const isEditableTarget = (el: EventTarget | null): boolean => {
-      const node = el as HTMLElement | null
-      if (!node) return false
-      const tag = node.tagName
-      return (
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT' ||
-        node.isContentEditable
-      )
-    }
-
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return
       if (isEditableTarget(e.target)) return
@@ -136,7 +120,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
     }
   }, [])
 
-  // ------- 音频同步（单音） -------
   useEffect(() => {
     if (currentIdRef.current) {
       stopKeyNote(currentIdRef.current)
@@ -158,17 +141,17 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
     }
   }, [])
 
-  // ------- 阻止中键 autoscroll（会吞掉其他鼠标事件） -------
   useEffect(() => {
     const preventAutoScroll = (e: MouseEvent) => {
       if (e.button === 1) e.preventDefault()
     }
     window.addEventListener('mousedown', preventAutoScroll, { capture: true })
     return () =>
-      window.removeEventListener('mousedown', preventAutoScroll, { capture: true })
+      window.removeEventListener('mousedown', preventAutoScroll, {
+        capture: true,
+      })
   }, [])
 
-  // ------- 全局 mouseup -------
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
       setMouseButtonStack(prev => {
@@ -183,7 +166,10 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 0 || e.button === 1 || e.button === 2) {
       if (e.button === 1) e.preventDefault()
-      setMouseButtonStack(prev => [...prev.filter(b => b !== e.button), e.button])
+      setMouseButtonStack(prev => [
+        ...prev.filter(b => b !== e.button),
+        e.button,
+      ])
     }
   }, [])
 
@@ -204,13 +190,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
         userSelect: 'none',
       }}
     >
-      {/*
-        谱子区域：
-        - 外层只负责展开/收起动画（裁剪）
-        - 内层是固定高度的「舞台」，圆角矩形完全贴合这个舞台高度
-        - 圆角矩形自身 overflow: auto —— 只有乐谱在矩形内滚动，矩形本身不移动
-        - 矩形采用 maxHeight: 100% —— 内容少时自动收缩，内容多时封顶并内部滚动
-      */}
       <Box
         sx={{
           flexShrink: 0,
@@ -269,7 +248,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
         </Box>
       </Box>
 
-      {/* 主区域 */}
       <Box
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
@@ -357,7 +335,6 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
           })}
         </Stack>
 
-        {/* 鼠标按钮指示器 */}
         <Box
           sx={{
             display: 'flex',
@@ -419,8 +396,10 @@ export function KeyboardSimulator({ showScore }: KeyboardSimulatorProps) {
               height: 30,
               borderRadius: '2px 8px 8px 2px',
               border: '2px solid',
-              borderColor: octaveDir === 'right' ? NOTE_COLORS.high : 'divider',
-              bgcolor: octaveDir === 'right' ? NOTE_COLORS.high : 'transparent',
+              borderColor:
+                octaveDir === 'right' ? NOTE_COLORS.high : 'divider',
+              bgcolor:
+                octaveDir === 'right' ? NOTE_COLORS.high : 'transparent',
               color: octaveDir === 'right' ? '#fff' : 'text.disabled',
               display: 'flex',
               alignItems: 'center',

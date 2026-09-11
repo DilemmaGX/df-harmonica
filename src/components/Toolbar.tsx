@@ -37,9 +37,10 @@ import CheckIcon from '@mui/icons-material/Check'
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic'
 import GitHubIcon from '@mui/icons-material/GitHub'
 import { useState } from 'react'
-import { useAppContext } from '../contexts/AppContext'
+import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
 import { playNotes, stopPlayback } from '../utils/audio'
+import { openExternal } from '../utils/openExternal'
 import type { Language } from '../types'
 
 export type ViewMode = 'compose' | 'perform'
@@ -64,6 +65,33 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
 ]
 
 const GITHUB_URL = 'https://github.com/DilemmaGX/df-harmonica'
+
+/**
+ * 数字输入框（BPM、拍/小节）的通用样式：
+ * - 强制 label 不省略（otherwise 中文 label 会被截断）
+ * - 缩小 label 与 input 字号，节省竖直空间
+ * - 输入框本身使用固定高度，配合 Toolbar 的 minHeight 保证 label 有处可放
+ */
+const numberFieldSx = {
+  '& .MuiInputLabel-root': {
+    fontSize: 11,
+    whiteSpace: 'nowrap',
+    overflow: 'visible',
+    textOverflow: 'clip',
+    // 收缩时 label 向上浮动，使用负偏移使其尽量靠近输入框顶边
+    '&.MuiInputLabel-shrink': {
+      transform: 'translate(12px, -6px) scale(0.85)',
+      transformOrigin: 'top left',
+    },
+  },
+  '& .MuiOutlinedInput-root': {
+    height: 34,
+  },
+  '& .MuiOutlinedInput-input': {
+    fontSize: 13,
+    padding: '4px 6px',
+  },
+} as const
 
 export function Toolbar({
   onImportAbc,
@@ -150,12 +178,14 @@ export function Toolbar({
         sx={{
           gap: 1,
           px: 2,
-          minHeight: 48,
+          py: 0.5,
+          minHeight: 56,
           flexWrap: 'nowrap',
           overflowX: 'auto',
+          // 允许浮动 label 上溢时不被裁切
+          overflowY: 'visible',
         }}
       >
-        {/* 业务切换：演奏在左（默认），谱曲在右 */}
         <ToggleButtonGroup
           size="small"
           exclusive
@@ -179,7 +209,6 @@ export function Toolbar({
 
         <Divider orientation="vertical" flexItem />
 
-        {/* 演奏模式：键盘谱显隐按钮 */}
         {viewMode === 'perform' && (
           <>
             <Tooltip title={t.keyboardPreview.title}>
@@ -235,7 +264,6 @@ export function Toolbar({
 
         <Divider orientation="vertical" flexItem />
 
-        {/* 内置示例曲谱 */}
         <Tooltip title={t.toolbar.examples}>
           <span>
             <IconButton
@@ -250,7 +278,6 @@ export function Toolbar({
 
         <Divider orientation="vertical" flexItem />
 
-        {/* 导入：下拉菜单（粘贴 ABC / 打开文件） */}
         <Tooltip title={t.toolbar.import}>
           <span>
             <IconButton
@@ -296,7 +323,6 @@ export function Toolbar({
           </MenuItem>
         </Menu>
 
-        {/* 导出：下拉菜单（ABC / MIDI / 键盘谱） */}
         <Tooltip title={t.toolbar.export}>
           <span>
             <IconButton
@@ -370,40 +396,46 @@ export function Toolbar({
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <TextField
-          label={t.toolbar.bpm}
-          type="number"
-          size="small"
-          value={track.bpm}
-          onChange={(e) => {
-            const newBpm = Number(e.target.value) || 120
-            if (newBpm !== track.bpm) {
-              addToHistory()
-              setTrack({ ...track, bpm: newBpm })
-            }
-          }}
-          sx={{ width: 70 }}
-          inputProps={{ min: 40, max: 240, style: { textAlign: 'center' } }}
-          variant="outlined"
-        />
-        <TextField
-          label={t.toolbar.beatsPerBar}
-          type="number"
-          size="small"
-          value={track.beatsPerBar}
-          onChange={(e) => {
-            const newVal = Number(e.target.value) || 4
-            if (newVal !== track.beatsPerBar) {
-              addToHistory()
-              setTrack({ ...track, beatsPerBar: newVal })
-            }
-          }}
-          sx={{ width: 80 }}
-          inputProps={{ min: 1, max: 12, style: { textAlign: 'center' } }}
-          variant="outlined"
-        />
+        {/* BPM 输入框 */}
+        <Tooltip title={t.toolbar.bpmHint}>
+          <TextField
+            label={t.toolbar.bpm}
+            type="number"
+            size="small"
+            value={track.bpm}
+            onChange={(e) => {
+              const newBpm = Number(e.target.value) || 120
+              if (newBpm !== track.bpm) {
+                addToHistory()
+                setTrack({ ...track, bpm: newBpm })
+              }
+            }}
+            sx={{ width: 72, ...numberFieldSx }}
+            inputProps={{ min: 40, max: 240, style: { textAlign: 'center' } }}
+            variant="outlined"
+          />
+        </Tooltip>
 
-        {/* 语言选择：地球图标 → 下拉菜单 */}
+        {/* 拍/小节 输入框 */}
+        <Tooltip title={t.toolbar.beatsPerBarHint}>
+          <TextField
+            label={t.toolbar.beatsPerBar}
+            type="number"
+            size="small"
+            value={track.beatsPerBar}
+            onChange={(e) => {
+              const newVal = Number(e.target.value) || 4
+              if (newVal !== track.beatsPerBar) {
+                addToHistory()
+                setTrack({ ...track, beatsPerBar: newVal })
+              }
+            }}
+            sx={{ width: 88, ...numberFieldSx }}
+            inputProps={{ min: 1, max: 12, style: { textAlign: 'center' } }}
+            variant="outlined"
+          />
+        </Tooltip>
+
         <Tooltip title={t.settings.language}>
           <IconButton
             size="small"
@@ -444,15 +476,13 @@ export function Toolbar({
           ))}
         </Menu>
 
-        {/* GitHub 仓库 */}
         <Tooltip title={t.settings.github}>
           <IconButton
             size="small"
             color="inherit"
-            component="a"
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+            onClick={() => {
+              void openExternal(GITHUB_URL)
+            }}
             aria-label={t.settings.github}
           >
             <GitHubIcon />

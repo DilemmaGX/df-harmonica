@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Box,
   Button,
@@ -19,9 +19,11 @@ import DownloadIcon from '@mui/icons-material/Download'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import type { Note } from '../types'
-import { useAppContext } from '../contexts/AppContext'
+import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
-import { KeyboardScore, EXPORT_FONT_FAMILY } from './KeyboardScore'
+import { KeyboardScore } from './KeyboardScore'
+import { EXPORT_FONT_FAMILY } from '../constants/score'
+import { saveFile } from '../utils/saveFile'
 
 interface KeyboardPreviewProps {
   notes: Note[]
@@ -43,33 +45,41 @@ export function KeyboardPreviewDialog({
   const { language, meta, setMeta } = useAppContext()
   const t = getTranslations(language)
   const theme = useTheme()
+
+  const themeDefaultMode = theme.palette.mode as 'light' | 'dark'
+
+  // 未手动切换时跟随主题；用户切换后固定下来，关闭时清空。
+  const [scoreModeOverride, setScoreModeOverride] = useState<
+    'light' | 'dark' | null
+  >(null)
+  const scoreMode = scoreModeOverride ?? themeDefaultMode
+
   const [barsPerLine, setBarsPerLine] = useState(2)
   const [includeQR, setIncludeQR] = useState(true)
-  const [scoreMode, setScoreMode] = useState<'light' | 'dark'>(
-    () => theme.palette.mode as 'light' | 'dark',
-  )
+
   const previewRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (open) {
-      setScoreMode(theme.palette.mode as 'light' | 'dark')
-    }
-  }, [open, theme.palette.mode])
+  const handleClose = () => {
+    setScoreModeOverride(null)
+    onClose()
+  }
 
   const fileName = (meta.title.trim() || 'harmonica-score').replace(
     /[\\/:*?"<>|]/g,
     '_',
   )
 
-  const doExport = (format: 'png' | 'svg') => {
+  const doExport = async (format: 'png' | 'svg') => {
     const el = previewRef.current
     if (!el) return
     const svg = el.querySelector('svg')
     if (!svg) return
+
     const bgColor = scoreMode === 'dark' ? '#1e1e1e' : '#ffffff'
     const serializer = new XMLSerializer()
     const svgClone = svg.cloneNode(true) as SVGSVGElement
     svgClone.setAttribute('font-family', EXPORT_FONT_FAMILY)
+
     const bgRect = document.createElementNS(
       'http://www.w3.org/2000/svg',
       'rect',
@@ -78,40 +88,60 @@ export function KeyboardPreviewDialog({
     bgRect.setAttribute('height', '100%')
     bgRect.setAttribute('fill', bgColor)
     svgClone.insertBefore(bgRect, svgClone.firstChild)
+
     const svgString = serializer.serializeToString(svgClone)
-    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
 
     if (format === 'svg') {
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${fileName}.svg`
-      a.click()
-      URL.revokeObjectURL(url)
-    } else {
+      await saveFile(svgString, {
+        defaultFileName: `${fileName}.svg`,
+        filters: [{ name: 'SVG', extensions: ['svg'] }],
+        mimeType: 'image/svg+xml;charset=utf-8',
+      })
+      return
+    }
+
+    // PNG：先将 SVG 光栅化到 canvas，再生成 Blob
+    const svgBlob = new Blob([svgString], {
+      type: 'image/svg+xml;charset=utf-8',
+    })
+    const url = URL.createObjectURL(svgBlob)
+
+    try {
       const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        canvas.width = svg.clientWidth * 2
-        canvas.height = svg.clientHeight * 2
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        ctx.fillStyle = bgColor
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        ctx.scale(2, 2)
-        ctx.drawImage(img, 0, 0)
-        URL.revokeObjectURL(url)
-        const a = document.createElement('a')
-        a.href = canvas.toDataURL('image/png')
-        a.download = `${fileName}.png`
-        a.click()
-      }
-      img.src = url
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('svg-render-failed'))
+        img.src = url
+      })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = svg.clientWidth * 2
+      canvas.height = svg.clientHeight * 2
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.fillStyle = bgColor
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.scale(2, 2)
+      ctx.drawImage(img, 0, 0)
+
+      const blob = await new Promise<Blob | null>(resolve => {
+        canvas.toBlob(resolve, 'image/png')
+      })
+      if (!blob) return
+
+      await saveFile(blob, {
+        defaultFileName: `${fileName}.png`,
+        filters: [{ name: 'PNG', extensions: ['png'] }],
+        mimeType: 'image/png',
+      })
+    } finally {
+      URL.revokeObjectURL(url)
     }
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
       <DialogTitle>{t.keyboardPreview.title}</DialogTitle>
       <DialogContent dividers>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 1.5 }}>
@@ -164,7 +194,7 @@ export function KeyboardPreviewDialog({
             exclusive
             value={scoreMode}
             onChange={(_, v: 'light' | 'dark' | null) => {
-              if (v) setScoreMode(v)
+              if (v) setScoreModeOverride(v)
             }}
           >
             <ToggleButton value="light" sx={{ px: 1, py: 0.4 }}>
@@ -192,14 +222,14 @@ export function KeyboardPreviewDialog({
           <Button
             variant="contained"
             startIcon={<DownloadIcon />}
-            onClick={() => doExport('png')}
+            onClick={() => void doExport('png')}
             size="small"
           >
             PNG
           </Button>
           <Button
             variant="outlined"
-            onClick={() => doExport('svg')}
+            onClick={() => void doExport('svg')}
             size="small"
           >
             SVG
@@ -231,7 +261,7 @@ export function KeyboardPreviewDialog({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t.dialogs.close}</Button>
+        <Button onClick={handleClose}>{t.dialogs.close}</Button>
       </DialogActions>
     </Dialog>
   )

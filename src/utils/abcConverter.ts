@@ -1,5 +1,5 @@
 import type { Note, Track, HarmonicaKey, OctaveShift } from '../types'
-import { getMidiNote, KEY_ORDER, KEY_DISPLAY } from './noteMapping'
+import { getMidiNote, KEY_ORDER } from './noteMapping'
 
 function midiToAbcPitch(midi: number): string {
   const noteNames = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
@@ -42,7 +42,9 @@ function abcPitchToMidi(abcPitch: string): number | null {
   if (!match) return null
 
   const [, accidental, letter, octaveMarks] = match
-  const noteIndex = ['C', 'D', 'E', 'F', 'G', 'A', 'B'].indexOf(letter.toUpperCase())
+  const noteIndex = ['C', 'D', 'E', 'F', 'G', 'A', 'B'].indexOf(
+    letter.toUpperCase(),
+  )
   if (noteIndex === -1) return null
 
   const baseMidi = [0, 2, 4, 5, 7, 9, 11][noteIndex]
@@ -286,10 +288,4 @@ function findMappingForMidi(
     return { key: best.key, octaveShift: best.octaveShift, isSharp: best.isSharp }
   }
   return null
-}
-
-export function getAbcKeyLabel(note: Note): string {
-  const mod = note.octaveShift === -1 ? '↓' : note.octaveShift === 1 ? '↑' : ''
-  const sharp = note.isSharp ? '#' : ''
-  return `${KEY_DISPLAY[note.key]}${sharp}${mod}`
 }

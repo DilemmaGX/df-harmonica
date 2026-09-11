@@ -227,9 +227,3 @@ export function stopKeyNote(id: string): void {
     // ignore
   }
 }
-
-export function stopAllKeyNotes(): void {
-  for (const id of Array.from(activeKeyNotes.keys())) {
-    stopKeyNote(id)
-  }
-}

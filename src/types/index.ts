@@ -35,9 +35,3 @@ export interface ProjectFile {
 export type ThemeMode = 'light' | 'dark' | 'system'
 
 export type Language = 'zh' | 'en'
-
-export interface ValidationError {
-  type: 'overlap' | 'invalidKey' | 'invalidDuration'
-  message: string
-  noteIds: string[]
-}

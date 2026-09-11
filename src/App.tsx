@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Box } from '@mui/material'
-import { AppProvider, useAppContext } from './contexts/AppContext'
+import { AppProvider } from './contexts/AppContext'
+import { useAppContext } from './contexts/useAppContext'
 import { Toolbar, type ViewMode } from './components/Toolbar'
 import { PianoRoll } from './components/PianoRoll'
 import { KeyboardPreviewDialog } from './components/KeyboardPreview'
@@ -15,7 +16,49 @@ import { downloadMidi } from './utils/midiExporter'
 import type { ProjectFile } from './types'
 import type { ExampleProject } from './data/examples'
 
+/**
+ * 全局禁用浏览器原生缩放：
+ * - Ctrl / Cmd + 滚轮
+ * - Ctrl / Cmd + `+` / `-` / `=`
+ * - Ctrl / Cmd + `0`
+ *
+ * 应用自身的缩放（例如 PianoRoll 的时间线宽度）通过各自的
+ * `onWheel` / `onKeyDown` 处理，不受此拦截影响。
+ */
+function useDisableNativeZoom() {
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+      }
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const k = e.key
+      if (
+        k === '+' ||
+        k === '=' ||
+        k === '-' ||
+        k === '_' ||
+        k === '0'
+      ) {
+        e.preventDefault()
+      }
+    }
+
+    // passive: false 才允许在 wheel 回调中调用 preventDefault
+    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
+}
+
 function AppContent() {
+  useDisableNativeZoom()
+
   const {
     track,
     setTrack,
@@ -46,7 +89,7 @@ function AppContent() {
   }
 
   const handleExportMidi = () => {
-    downloadMidi(track, meta)
+    void downloadMidi(track, meta)
   }
 
   const applyProject = (project: ProjectFile) => {
@@ -56,11 +99,6 @@ function AppContent() {
     setPlayStartBeat(0)
   }
 
-  /**
-   * 请求加载工程：
-   * - 若当前工程为空 → 直接应用
-   * - 若当前工程已有内容 → 暂存 pending，弹出确认对话框
-   */
   const requestLoadProject = (project: ProjectFile) => {
     if (notes.length > 0) {
       setPendingProject(project)
@@ -135,7 +173,7 @@ function AppContent() {
               p: 1,
             }}
           >
-            <PianoRoll width={800} height={600} />
+            <PianoRoll />
           </Box>
         ) : (
           <Box sx={{ flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>

@@ -1,0 +1,143 @@
+name: Release
+
+# ---------------------------------------------------------------------------
+# Manual, on-demand release.
+#
+# The maintainer decides:
+#   - when to cut a release
+#   - what version tag it should have (e.g. v0.2.0)
+#   - whether it is a draft (invisible to the public)
+#   - whether it is a pre-release (visible but marked "beta")
+#
+# The workflow then:
+#   1. Checks out the chosen ref
+#   2. Builds the standalone Windows .exe via `npm run exe`
+#   3. Bakes the version into `tauri.conf.json` (so the exe metadata matches)
+#   4. Creates the GitHub Release with the requested tag
+#   5. Uploads `df-harmonica.exe` as a release asset
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v0.2.0). Must be unique — the tag will be created.'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release (visible, but flagged "beta")'
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: 'Create as draft (hidden from the public until you publish it)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp version into tauri.conf.json
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.version }}"
+          $version = $tag.TrimStart('v')
+          Write-Host "Release tag:  $tag"
+          Write-Host "Semver:       $version"
+          node -e "
+            const fs = require('fs');
+            const v = process.argv[1];
+            const path = 'src-tauri/tauri.conf.json';
+            const json = JSON.parse(fs.readFileSync(path, 'utf8'));
+            json.version = v;
+            fs.writeFileSync(path, JSON.stringify(json, null, 2) + '\n');
+          " $version
+          Get-Content src-tauri/tauri.conf.json | Select-String '"version"'
+
+      - name: Build standalone Windows .exe
+        run: npm run exe
+
+      - name: Verify artifact exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/df-harmonica.exe")) {
+            Write-Error "dist/df-harmonica.exe was not produced."
+            exit 1
+          }
+          $size = (Get-Item "dist/df-harmonica.exe").Length / 1MB
+          Write-Host ("Artifact size: {0:N2} MB" -f $size)
+
+      - name: Compose release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.version }}"
+          $body = @"
+          ## DF Harmonica $tag
+
+          Standalone Windows executable for the *Delta Force* harmonica score tool.
+
+          ### What's included
+
+          - ``df-harmonica.exe`` — single-file portable build (Windows, x64)
+          - No installer required. Double-click to run.
+
+          ### Notes
+
+          - The app stores its state in ``localStorage`` under ``df-harmonica:state``.
+          - MIDI export uses the native save dialog.
+          - Requires the WebView2 runtime (preinstalled on Windows 10/11).
+
+          See the full commit history for the complete list of changes since the previous release.
+          "@
+          # Remove leading indentation added by the heredoc
+          $body = $body -replace '(?m)^\s{10}', ''
+          $body | Out-File -FilePath release-notes.md -Encoding utf8
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ inputs.version }}"
+          $args = @(
+            'release', 'create', $tag,
+            'dist/df-harmonica.exe',
+            '--title', $tag,
+            '--notes-file', 'release-notes.md'
+          )
+          if ('${{ inputs.prerelease }}' -eq 'true') { $args += '--prerelease' }
+          if ('${{ inputs.draft }}'      -eq 'true') { $args += '--draft' }
+          gh @args
+          Write-Host "Release $tag created."

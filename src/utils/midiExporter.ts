@@ -1,5 +1,6 @@
 import type { Track, ProjectMeta } from '../types'
 import { getMidiNote } from './noteMapping'
+import { saveFile } from './saveFile'
 
 /**
  * 将当前工程导出为标准 MIDI 文件（SMF，格式 0，单轨）。
@@ -160,7 +161,6 @@ export function buildMidiFile(track: Track, meta: ProjectMeta): Uint8Array {
     ...trackData,
   ]
 
-  // 拷贝到独立 ArrayBuffer，避免 SharedArrayBuffer 引发的类型不兼容
   const buffer = new ArrayBuffer(header.length + trackChunk.length)
   const view = new Uint8Array(buffer)
   view.set(header, 0)
@@ -168,21 +168,21 @@ export function buildMidiFile(track: Track, meta: ProjectMeta): Uint8Array {
   return view
 }
 
-/** 触发浏览器下载 .mid 文件 */
-export function downloadMidi(track: Track, meta: ProjectMeta): void {
+/** 触发保存（Tauri：弹对话框；浏览器：静默下载） */
+export async function downloadMidi(
+  track: Track,
+  meta: ProjectMeta,
+): Promise<void> {
   const bytes = buildMidiFile(track, meta)
-  const buffer = bytes.buffer as ArrayBuffer
-  const blob = new Blob([buffer], { type: 'audio/midi' })
-  const url = URL.createObjectURL(blob)
 
   const fileName = (meta.title.trim() || 'harmonica-score').replace(
     /[\\/:*?"<>|]/g,
     '_',
   )
 
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${fileName}.mid`
-  a.click()
-  URL.revokeObjectURL(url)
+  await saveFile(bytes, {
+    defaultFileName: `${fileName}.mid`,
+    filters: [{ name: 'MIDI', extensions: ['mid', 'midi'] }],
+    mimeType: 'audio/midi',
+  })
 }

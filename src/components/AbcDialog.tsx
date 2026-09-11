@@ -1,6 +1,14 @@
-import { useEffect, useState } from 'react'
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Typography } from '@mui/material'
-import { useAppContext } from '../contexts/AppContext'
+import { useState } from 'react'
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
 import { notesToAbc, abcToNotes } from '../utils/abcConverter'
 
@@ -10,23 +18,27 @@ interface AbcDialogProps {
   mode: 'import' | 'export'
 }
 
-export function AbcDialog({ open, onClose, mode }: AbcDialogProps) {
+/**
+ * 通过 key 强制重建内部状态：
+ * 每次打开或切换导入/导出模式时，状态由初始值派生，无需在 effect 中 setState。
+ */
+export function AbcDialog(props: AbcDialogProps) {
+  return (
+    <AbcDialogInner
+      key={`${props.open ? 'open' : 'closed'}-${props.mode}`}
+      {...props}
+    />
+  )
+}
+
+function AbcDialogInner({ open, onClose, mode }: AbcDialogProps) {
   const { track, setTrack, language } = useAppContext()
   const t = getTranslations(language)
-  const [abcText, setAbcText] = useState('')
+
+  const initialAbcText = mode === 'export' ? notesToAbc(track) : ''
+  const [abcText, setAbcText] = useState(initialAbcText)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (open && mode === 'export') {
-      setAbcText(notesToAbc(track))
-      setError('')
-    }
-    if (open && mode === 'import') {
-      setAbcText('')
-      setError('')
-    }
-  }, [open, mode, track])
 
   const handleImport = () => {
     const result = abcToNotes(abcText)
@@ -56,7 +68,9 @@ export function AbcDialog({ open, onClose, mode }: AbcDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        {mode === 'import' ? t.dialogs.importAbcTitle : t.dialogs.exportAbcTitle}
+        {mode === 'import'
+          ? t.dialogs.importAbcTitle
+          : t.dialogs.exportAbcTitle}
       </DialogTitle>
       <DialogContent>
         {mode === 'import' && (

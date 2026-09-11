@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
   useCallback,
@@ -14,49 +12,9 @@ import type {
   ProjectMeta,
   ThemeMode,
   Track,
-  ValidationError,
 } from '../types'
 import { loadState, saveState, DEFAULT_META } from '../utils/storage'
-
-interface AppState {
-  track: Track
-  setTrack: (track: Track) => void
-  notes: Note[]
-  setNotes: (notesOrUpdater: Note[] | ((prev: Note[]) => Note[])) => void
-  meta: ProjectMeta
-  setMeta: (meta: ProjectMeta) => void
-  language: Language
-  setLanguage: (lang: Language) => void
-  themeMode: ThemeMode
-  setThemeMode: (mode: ThemeMode) => void
-  errors: ValidationError[]
-  setErrors: (errors: ValidationError[]) => void
-  selectedNoteId: string | null
-  setSelectedNoteId: (id: string | null) => void
-  isPlaying: boolean
-  setIsPlaying: (playing: boolean) => void
-  /** 播放起始拍（小节开头），默认 0 = 1 号小节开头 */
-  playStartBeat: number
-  setPlayStartBeat: (beat: number) => void
-  undo: () => void
-  redo: () => void
-  canUndo: boolean
-  canRedo: boolean
-  /**
-   * 标记一个即将发生的变更进入撤销栈。
-   * 调用者应当在真正修改 track / meta 之前调用它；
-   * 变更后的下一帧会自动把新状态压入历史。
-   */
-  addToHistory: () => void
-}
-
-const AppContext = createContext<AppState | null>(null)
-
-export function useAppContext(): AppState {
-  const ctx = useContext(AppContext)
-  if (!ctx) throw new Error('useAppContext must be used within AppProvider')
-  return ctx
-}
+import { AppContext, type AppState } from './appContextValue'
 
 interface AppProviderProps {
   children: ReactNode
@@ -81,17 +39,16 @@ export function AppProvider({ children }: AppProviderProps) {
 
   const [track, setTrackState] = useState<Track>(initialTrack)
   const [meta, setMetaState] = useState<ProjectMeta>(initialMeta)
-  const [language, setLanguage] = useState<Language>(persisted?.language ?? 'zh')
+  const [language, setLanguage] = useState<Language>(
+    persisted?.language ?? 'zh',
+  )
   const [themeMode, setThemeMode] = useState<ThemeMode>(
     persisted?.themeMode ?? 'system',
   )
-  const [errors, setErrors] = useState<ValidationError[]>([])
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playStartBeat, setPlayStartBeat] = useState(0)
 
   // ---------------- 撤销 / 重做 ----------------
-  // 历史用 ref 保存，避免闭包过期；对外只暴露布尔状态用于渲染。
   const historyRef = useRef<HistorySnapshot[]>([
     { track: initialTrack, meta: initialMeta },
   ])
@@ -99,21 +56,17 @@ export function AppProvider({ children }: AppProviderProps) {
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
 
-  // 挂起的提交：addToHistory 只做标记，等状态真正变化后由 effect 压栈。
   const pendingCommitRef = useRef(false)
 
   const updateCanUndoRedo = useCallback(() => {
     setCanUndo(historyIndexRef.current > 0)
-    setCanRedo(
-      historyIndexRef.current < historyRef.current.length - 1,
-    )
+    setCanRedo(historyIndexRef.current < historyRef.current.length - 1)
   }, [])
 
   const addToHistory = useCallback(() => {
     pendingCommitRef.current = true
   }, [])
 
-  // 状态变化时，如有挂起提交 → 压栈（在新状态之后）
   useEffect(() => {
     if (!pendingCommitRef.current) return
     pendingCommitRef.current = false
@@ -170,24 +123,23 @@ export function AppProvider({ children }: AppProviderProps) {
 
   // ---------------------------------------------------------------------------
   // 持久化
+  //
+  // 直接在 effect 里闭包捕获最新状态，无需在渲染期间读写 ref。
   // ---------------------------------------------------------------------------
-  const stateRef = useRef({ track, meta, language, themeMode })
-  stateRef.current = { track, meta, language, themeMode }
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      saveState(stateRef.current)
+      saveState({ track, meta, language, themeMode })
     }, 300)
     return () => window.clearTimeout(timer)
   }, [track, meta, language, themeMode])
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      saveState(stateRef.current)
+      saveState({ track, meta, language, themeMode })
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [])
+  }, [track, meta, language, themeMode])
 
   // ---------------------------------------------------------------------------
   // 主题跟随系统
@@ -221,7 +173,6 @@ export function AppProvider({ children }: AppProviderProps) {
     },
     typography: {
       fontFamily: [
-        'Inter',
         'system-ui',
         '-apple-system',
         'BlinkMacSystemFont',
@@ -232,34 +183,30 @@ export function AppProvider({ children }: AppProviderProps) {
     },
   })
 
+  const value: AppState = {
+    track,
+    setTrack,
+    notes: track.notes,
+    setNotes,
+    meta,
+    setMeta,
+    language,
+    setLanguage,
+    themeMode,
+    setThemeMode,
+    isPlaying,
+    setIsPlaying,
+    playStartBeat,
+    setPlayStartBeat,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    addToHistory,
+  }
+
   return (
-    <AppContext.Provider
-      value={{
-        track,
-        setTrack,
-        notes: track.notes,
-        setNotes,
-        meta,
-        setMeta,
-        language,
-        setLanguage,
-        themeMode,
-        setThemeMode,
-        errors,
-        setErrors,
-        selectedNoteId,
-        setSelectedNoteId,
-        isPlaying,
-        setIsPlaying,
-        playStartBeat,
-        setPlayStartBeat,
-        undo,
-        redo,
-        canUndo,
-        canRedo,
-        addToHistory,
-      }}
-    >
+    <AppContext.Provider value={value}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}

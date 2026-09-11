@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material'
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic'
-import { useAppContext } from '../contexts/AppContext'
+import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
 import { EXAMPLES, type ExampleProject } from '../data/examples'
 

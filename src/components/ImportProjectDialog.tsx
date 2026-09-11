@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
-import { useAppContext } from '../contexts/AppContext'
+import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
 import { parseProjectFile, decodeProjectFromQR } from '../utils/projectFormat'
 import { extractProjectFromImageFile } from '../utils/imageQRScanner'
@@ -159,21 +159,18 @@ export function ImportProjectDialog({
       return
     }
 
-    // 1) 工程 JSON
     const projectJson = parseProjectFile(text)
     if (projectJson) {
       stageProject(projectJson)
       return
     }
 
-    // 2) 二维码紧凑编码（用户可能直接粘贴二维码文本）
     const projectQR = decodeProjectFromQR(text)
     if (projectQR) {
       stageProject(projectQR)
       return
     }
 
-    // 3) ABC 记谱法
     const abc = abcToNotes(text)
     if (abc) {
       const projectFromAbc: ProjectFile = {
