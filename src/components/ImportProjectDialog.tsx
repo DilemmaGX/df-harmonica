@@ -15,6 +15,7 @@ import { getTranslations } from '../i18n/translations'
 import { parseProjectFile, decodeProjectFromQR } from '../utils/projectFormat'
 import { extractProjectFromImageFile } from '../utils/imageQRScanner'
 import { abcToNotes } from '../utils/abcConverter'
+import { parseMidiFile } from '../utils/midiImporter'
 import type { ProjectFile } from '../types'
 
 interface ImportProjectDialogProps {
@@ -23,10 +24,22 @@ interface ImportProjectDialogProps {
 }
 
 const IMAGE_EXT_RE = /\.(png|jpe?g|svg|webp|gif|bmp)$/i
+const MIDI_EXT_RE = /\.(mid|midi|smf)$/i
 
 function isImageFile(file: File): boolean {
   if (file.type.startsWith('image/')) return true
   return IMAGE_EXT_RE.test(file.name)
+}
+
+function isMidiFile(file: File): boolean {
+  if (
+    file.type === 'audio/midi' ||
+    file.type === 'audio/x-midi' ||
+    file.type === 'audio/sp-midi'
+  ) {
+    return true
+  }
+  return MIDI_EXT_RE.test(file.name)
 }
 
 export function ImportProjectDialog({
@@ -78,6 +91,42 @@ export function ImportProjectDialog({
     setFileName(file.name)
     setError('')
     setPending(null)
+
+    // ---------------- MIDI 路径 ----------------
+    if (isMidiFile(file)) {
+      let buffer: ArrayBuffer
+      try {
+        buffer = await file.arrayBuffer()
+      } catch {
+        setError(t.importProject.readError)
+        resetFileInput()
+        return
+      }
+
+      const result = parseMidiFile(new Uint8Array(buffer))
+      if (!result) {
+        setError(t.importProject.midiParseError)
+        resetFileInput()
+        return
+      }
+
+      const projectFromMidi: ProjectFile = {
+        format: 'df-harmonica-project',
+        version: 1,
+        meta: {
+          title: file.name.replace(/\.[^.]+$/, ''),
+          composer: '',
+          transcriber: '',
+        },
+        track: {
+          notes: result.notes,
+          bpm: result.bpm,
+          beatsPerBar: result.beatsPerBar,
+        },
+      }
+      stageProject(projectFromMidi)
+      return
+    }
 
     // ---------------- 图片路径：扫描二维码 ----------------
     if (isImageFile(file)) {
@@ -187,7 +236,7 @@ export function ImportProjectDialog({
                 ref={fileInputRef}
                 type="file"
                 hidden
-                accept=".json,.abc,.txt,.png,.jpg,.jpeg,.svg,.webp,.gif,.bmp,application/json,text/plain,image/*"
+                accept=".json,.abc,.txt,.mid,.midi,.smf,.png,.jpg,.jpeg,.svg,.webp,.gif,.bmp,application/json,text/plain,audio/midi,audio/x-midi,audio/sp-midi,image/*"
                 onChange={handleFileSelect}
               />
             </Box>

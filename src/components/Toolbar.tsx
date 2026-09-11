@@ -8,16 +8,20 @@ import {
   Tooltip,
   MenuItem,
   Menu,
+  ListItemIcon,
+  ListItemText,
   ToggleButton,
   ToggleButtonGroup,
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
+import SaveAltIcon from '@mui/icons-material/SaveAlt'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import SaveIcon from '@mui/icons-material/Save'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import AudiotrackIcon from '@mui/icons-material/Audiotrack'
+import NotesIcon from '@mui/icons-material/Notes'
 import DeleteIcon from '@mui/icons-material/Delete'
 import UndoIcon from '@mui/icons-material/Undo'
 import RedoIcon from '@mui/icons-material/Redo'
@@ -91,6 +95,16 @@ export function Toolbar({
 
   const [langMenuAnchor, setLangMenuAnchor] = useState<HTMLElement | null>(null)
   const langMenuOpen = Boolean(langMenuAnchor)
+
+  const [importMenuAnchor, setImportMenuAnchor] = useState<HTMLElement | null>(
+    null,
+  )
+  const importMenuOpen = Boolean(importMenuAnchor)
+
+  const [exportMenuAnchor, setExportMenuAnchor] = useState<HTMLElement | null>(
+    null,
+  )
+  const exportMenuOpen = Boolean(exportMenuAnchor)
 
   const handlePlay = () => {
     if (isPlaying) {
@@ -233,54 +247,108 @@ export function Toolbar({
 
         <Divider orientation="vertical" flexItem />
 
-        {/* 导入 / 导出 组 */}
-        <Tooltip title={t.toolbar.importAbc}>
+        {/* 导入：下拉菜单（粘贴 ABC / 打开文件） */}
+        <Tooltip title={t.toolbar.import}>
           <span>
-            <IconButton size="small" onClick={onImportAbc} disabled={!isCompose}>
+            <IconButton
+              size="small"
+              onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+              disabled={!isCompose}
+              aria-label={t.toolbar.import}
+              aria-haspopup="menu"
+            >
               <FileOpenIcon />
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title={t.toolbar.importScore}>
+        <Menu
+          anchorEl={importMenuAnchor}
+          open={importMenuOpen}
+          onClose={() => setImportMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          slotProps={{ paper: { sx: { minWidth: 220, mt: 0.5 } } }}
+        >
+          <MenuItem
+            onClick={() => {
+              setImportMenuAnchor(null)
+              onImportAbc()
+            }}
+          >
+            <ListItemIcon>
+              <NotesIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t.toolbar.importAbc}</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setImportMenuAnchor(null)
+              onImportScore()
+            }}
+          >
+            <ListItemIcon>
+              <UploadFileIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t.toolbar.importScore}</ListItemText>
+          </MenuItem>
+        </Menu>
+
+        {/* 导出：下拉菜单（ABC / MIDI / 键盘谱） */}
+        <Tooltip title={t.toolbar.export}>
           <span>
             <IconButton
               size="small"
-              onClick={onImportScore}
+              onClick={(e) => setExportMenuAnchor(e.currentTarget)}
               disabled={!isCompose}
+              aria-label={t.toolbar.export}
+              aria-haspopup="menu"
             >
-              <UploadFileIcon />
+              <SaveAltIcon />
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title={t.toolbar.exportAbc}>
-          <span>
-            <IconButton size="small" onClick={onExportAbc} disabled={!isCompose}>
-              <SaveIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Tooltip title={t.toolbar.exportMidi}>
-          <span>
-            <IconButton
-              size="small"
-              onClick={onExportMidi}
-              disabled={!isCompose}
-            >
-              <AudiotrackIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Tooltip title={t.toolbar.exportScore}>
-          <span>
-            <IconButton
-              size="small"
-              onClick={onExportScore}
-              disabled={!isCompose}
-            >
-              <PictureAsPdfIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
+        <Menu
+          anchorEl={exportMenuAnchor}
+          open={exportMenuOpen}
+          onClose={() => setExportMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          slotProps={{ paper: { sx: { minWidth: 220, mt: 0.5 } } }}
+        >
+          <MenuItem
+            onClick={() => {
+              setExportMenuAnchor(null)
+              onExportAbc()
+            }}
+          >
+            <ListItemIcon>
+              <SaveIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t.toolbar.exportAbc}</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setExportMenuAnchor(null)
+              onExportMidi()
+            }}
+          >
+            <ListItemIcon>
+              <AudiotrackIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t.toolbar.exportMidi}</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setExportMenuAnchor(null)
+              onExportScore()
+            }}
+          >
+            <ListItemIcon>
+              <PictureAsPdfIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t.toolbar.exportScore}</ListItemText>
+          </MenuItem>
+        </Menu>
 
         <Divider orientation="vertical" flexItem />
 

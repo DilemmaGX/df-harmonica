@@ -75,8 +75,7 @@ export function buildMidiFile(track: Track, meta: ProjectMeta): Uint8Array {
   })
 
   // 拍号事件：FF 58 04 <分子> <2 的幂> <24> <8>
-  const denominator = 4
-  const denominatorPower = Math.round(Math.log2(denominator)) // 2
+  const denominatorPower = 2 // 4 = 2^2
   events.push({
     tick: 0,
     order: order++,
@@ -161,13 +160,19 @@ export function buildMidiFile(track: Track, meta: ProjectMeta): Uint8Array {
     ...trackData,
   ]
 
-  return new Uint8Array([...header, ...trackChunk])
+  // 拷贝到独立 ArrayBuffer，避免 SharedArrayBuffer 引发的类型不兼容
+  const buffer = new ArrayBuffer(header.length + trackChunk.length)
+  const view = new Uint8Array(buffer)
+  view.set(header, 0)
+  view.set(trackChunk, header.length)
+  return view
 }
 
 /** 触发浏览器下载 .mid 文件 */
 export function downloadMidi(track: Track, meta: ProjectMeta): void {
   const bytes = buildMidiFile(track, meta)
-  const blob = new Blob([bytes], { type: 'audio/midi' })
+  const buffer = bytes.buffer as ArrayBuffer
+  const blob = new Blob([buffer], { type: 'audio/midi' })
   const url = URL.createObjectURL(blob)
 
   const fileName = (meta.title.trim() || 'harmonica-score').replace(
