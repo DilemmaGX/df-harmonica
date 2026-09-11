@@ -35,6 +35,7 @@ import PianoIcon from '@mui/icons-material/Piano'
 import LanguageIcon from '@mui/icons-material/Language'
 import CheckIcon from '@mui/icons-material/Check'
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic'
+import GitHubIcon from '@mui/icons-material/GitHub'
 import { useState } from 'react'
 import { useAppContext } from '../contexts/AppContext'
 import { getTranslations } from '../i18n/translations'
@@ -61,6 +62,8 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
   { value: 'zh', label: '中文' },
   { value: 'en', label: 'English' },
 ]
+
+const GITHUB_URL = 'https://github.com/DilemmaGX/df-harmonica'
 
 export function Toolbar({
   onImportAbc,
@@ -440,6 +443,21 @@ export function Toolbar({
             </MenuItem>
           ))}
         </Menu>
+
+        {/* GitHub 仓库 */}
+        <Tooltip title={t.settings.github}>
+          <IconButton
+            size="small"
+            color="inherit"
+            component="a"
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t.settings.github}
+          >
+            <GitHubIcon />
+          </IconButton>
+        </Tooltip>
 
         <Tooltip title={t.settings.theme}>
           <IconButton size="small" onClick={cycleTheme} color="inherit">
