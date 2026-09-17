@@ -50,7 +50,7 @@ export function ExamplesDialog({
             >
               <LibraryMusicIcon color="primary" />
               <ListItemText
-                primary={ex.title}
+                primary={ex.title[language]}
                 primaryTypographyProps={{ fontWeight: 500 }}
               />
             </ListItemButton>

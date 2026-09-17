@@ -65,6 +65,7 @@ function AppContent() {
     notes,
     meta,
     setMeta,
+    language,
     addToHistory,
     setPlayStartBeat,
   } = useAppContext()
@@ -115,7 +116,7 @@ function AppContent() {
       format: 'df-harmonica-project',
       version: 1,
       meta: {
-        title: example.title,
+        title: example.title[language],
         composer: '',
         transcriber: '',
       },

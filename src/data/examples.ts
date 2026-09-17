@@ -1,13 +1,19 @@
 export interface ExampleProject {
   id: string
-  title: string
+  title: {
+    zh: string
+    en: string
+  }
   abc: string
 }
 
 export const EXAMPLES: ExampleProject[] = [
   {
     id: 'lonely-song',
-    title: '寂寞的人伤心的歌',
+    title: {
+      zh: '寂寞的人伤心的歌',
+      en: 'Song of the Lonely and Sad',
+    },
     abc: [
       'X:1',
       'T:Random Tune',
@@ -21,7 +27,10 @@ export const EXAMPLES: ExampleProject[] = [
   },
   {
     id: 'see-you-again',
-    title: 'See You Again',
+    title: {
+      zh: 'See You Again',
+      en: 'See You Again',
+    },
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -40,7 +49,10 @@ export const EXAMPLES: ExampleProject[] = [
   },
   {
     id: 'mermaid',
-    title: '美人鱼 Mermaid',
+    title: {
+      zh: '美人鱼',
+      en: 'Mermaid',
+    },
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -56,7 +68,10 @@ export const EXAMPLES: ExampleProject[] = [
   },
   {
     id: 'southeast-ascetic-mountain',
-    title: '东南苦行山',
+    title: {
+      zh: '东南苦行山',
+      en: 'Southeast Ascetic Mountain',
+    },
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -76,7 +91,10 @@ export const EXAMPLES: ExampleProject[] = [
   },
   {
     id: 'the-sun-also-rises',
-    title: '太阳照常升起',
+    title: {
+      zh: '太阳照常升起',
+      en: 'The Sun Also Rises',
+    },
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -95,7 +113,10 @@ export const EXAMPLES: ExampleProject[] = [
   },
   {
     id: 'katyusha',
-    title: '喀秋莎',
+    title: {
+      zh: '喀秋莎',
+      en: 'Katyusha',
+    },
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -115,6 +136,43 @@ export const EXAMPLES: ExampleProject[] = [
       '^E2 E D E2 A,2',
       'z ^E2 D E3 C',
       'B, E, C B, A,4',
+    ].join('\n'),
+  },
+  {
+    id: 'unbreakable-union',
+    title: {
+      zh: '牢不可破的联盟',
+      en: 'The Unbreakable Union',
+    },
+    abc: [
+      'X:1',
+      'T:Harmonica Tune',
+      'M:4/4',
+      'L:1/8',
+      'Q:1/4=76',
+      'K:C',
+      'c6 z G c2 G3/2 A1/2 B2 E E',
+      'A2 G3/2 ^E1/2 G2 C C D2 D3/2 E1/2 ^E2 ^E G',
+      'A2 B3/2 c1/2 d3 G e2 d3/2 c1/2 d2 B G',
+      'c2 B3/2 A1/2 B2 E E A2 G3/2 ^E1/2 G2 C C',
+      'c2 B3/2 A1/2 G B c d e4 d c B c',
+      'd3 G G B c d c4 B A G A',
+      'B3 E E G A B c2 A3/2 B1/2 c2 A3/2 B1/2',
+      'c2 A3/2 c1/2 ^e4 ^e4 e d c d',
+      'e3 c c4 d4 c B A B',
+      'c3 A A4 c2 B A G2 c2',
+      'c2 B3/2 A1/2 G3 G c6 z G',
+      'c2 G3/2 A1/2 B2 E E A2 G3/2 ^E1/2 G2 C C',
+      'D2 D3/2 E1/2 ^E2 ^E G A2 B3/2 c1/2 d3 G',
+      'e2 d3/2 c1/2 d2 B G c2 B3/2 A1/2 B2 E E',
+      'A2 G3/2 ^E1/2 G2 C C c2 B3/2 A1/2 G B c d',
+      'e4 d c B c d3 G G B c d',
+      'c4 B A G A B3 E E G A B',
+      'c2 A3/2 B1/2 c2 A3/2 B1/2 c2 A3/2 c1/2 ^e4',
+      '^e4 e d c d e3 c c4',
+      'd4 c B A B c3 A A4',
+      'c2 B A G2 c2 G4 A2 B2',
+      'c8',
     ].join('\n'),
   },
 ]
