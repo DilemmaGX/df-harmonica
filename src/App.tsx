@@ -85,6 +85,7 @@ function AppContent() {
     addToHistory()
     setTrack({ ...track, notes: [] })
     setMeta({ title: '', composer: '', transcriber: '' })
+    setPlayStartBeat(0)
     setClearAllOpen(false)
   }
 
