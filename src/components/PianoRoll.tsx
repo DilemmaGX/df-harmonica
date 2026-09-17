@@ -38,6 +38,15 @@ const ZOOM_STEP = 1.1
 /** 起始小节指示器颜色（翠绿，与播放头紫色区分） */
 const PLAY_START_MARKER_COLOR = '#10b981'
 
+/** 无效幽灵方块的颜色（与 NOTE_COLORS.default 形成对比） */
+const INVALID_GHOST_COLOR = '#ef4444'
+
+/** 音符时值可选项（拍） */
+const DURATION_1 = 1
+const DURATION_2 = 2
+const DURATION_HALF = 0.5
+const DURATION_QUARTER = 0.25
+
 /** hex → rgba 字符串 */
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace('#', '')
@@ -103,6 +112,12 @@ interface ClipboardNote {
   isSharp: boolean
 }
 
+interface HoverPosition {
+  /** 鼠标位置（未吸附的原始 beat） */
+  beat: number
+  midi: number
+}
+
 export function PianoRoll() {
   const {
     track,
@@ -115,6 +130,7 @@ export function PianoRoll() {
     redo,
     playStartBeat,
     setPlayStartBeat,
+    notePlacement,
   } = useAppContext()
   const t = getTranslations(language)
   const theme = useTheme()
@@ -141,6 +157,15 @@ export function PianoRoll() {
   )
   const [previewMidi, setPreviewMidi] = useState<number | null>(null)
   const [isDraggingMarker, setIsDraggingMarker] = useState(false)
+
+  /** 新音符的默认时值（拍），由数字键 1–4 切换 */
+  const [defaultDuration, setDefaultDuration] = useState<number>(DURATION_1)
+
+  /** 鼠标悬停在网格上的位置，用于渲染实时幽灵方块 */
+  const [hoverPosition, setHoverPosition] = useState<HoverPosition | null>(null)
+
+  /** 是否有拖拽 / 指针交互进行中（隐藏悬停幽灵） */
+  const [isDragging, setIsDragging] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const dragStateRef = useRef<DragState>({
@@ -313,15 +338,34 @@ export function PianoRoll() {
     [track.notes],
   )
 
+  /**
+   * 根据鼠标位置计算新音符的起始 beat。
+   *
+   * - `start` 模式：鼠标所在拍即音符起点
+   * - `center` 模式：鼠标所在拍作为音符中心，起点向左偏移半个时值
+   *
+   * 结果会吸附到 1/4 拍网格，并保证 ≥ 0。
+   */
+  const computeStartBeat = useCallback(
+    (mouseBeat: number, duration: number): number => {
+      let startBeat = mouseBeat
+      if (notePlacement === 'center') {
+        startBeat -= duration / 2
+      }
+      return Math.max(0, Math.round(startBeat * 4) / 4)
+    },
+    [notePlacement],
+  )
+
   const addNote = useCallback(
     (beat: number, midi: number) => {
-      const snappedBeat = Math.round(beat * 4) / 4
+      const snappedBeat = computeStartBeat(beat, defaultDuration)
       const mapping = findBestMapping(midi)
       if (!mapping) return
       const newNote: Note = {
         id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         startBeat: snappedBeat,
-        durationBeats: 1,
+        durationBeats: defaultDuration,
         key: mapping.key,
         octaveShift: mapping.octaveShift,
         isSharp: mapping.isSharp,
@@ -334,7 +378,14 @@ export function PianoRoll() {
       addToHistory()
       setNotes(prev => [...prev, newNote])
     },
-    [checkOverlap, setNotes, addToHistory, t],
+    [
+      checkOverlap,
+      setNotes,
+      addToHistory,
+      t,
+      defaultDuration,
+      computeStartBeat,
+    ],
   )
 
   // 键盘快捷键
@@ -343,6 +394,30 @@ export function PianoRoll() {
       if (isEditableTarget(e.target) || e.isComposing) return
 
       const isCtrl = e.ctrlKey || e.metaKey
+
+      // ------- 音符时值：数字键 1–4（仅无修饰键） -------
+      if (!isCtrl && !e.altKey) {
+        if (e.code === 'Digit1' || e.code === 'Numpad1') {
+          e.preventDefault()
+          setDefaultDuration(DURATION_1)
+          return
+        }
+        if (e.code === 'Digit2' || e.code === 'Numpad2') {
+          e.preventDefault()
+          setDefaultDuration(DURATION_2)
+          return
+        }
+        if (e.code === 'Digit3' || e.code === 'Numpad3') {
+          e.preventDefault()
+          setDefaultDuration(DURATION_HALF)
+          return
+        }
+        if (e.code === 'Digit4' || e.code === 'Numpad4') {
+          e.preventDefault()
+          setDefaultDuration(DURATION_QUARTER)
+          return
+        }
+      }
 
       // ------- 时间线缩放：Ctrl + `+` / `-` / `0` -------
       if (isCtrl && (e.key === '+' || e.key === '=')) {
@@ -505,6 +580,7 @@ export function PianoRoll() {
     e.stopPropagation()
     markerDragRef.current = true
     setIsDraggingMarker(true)
+    setIsDragging(true)
   }, [])
 
   const handleMouseDown = useCallback(
@@ -569,6 +645,7 @@ export function PianoRoll() {
         }
         setSelectionRect({ x1: x, y1: y, x2: x, y2: y })
         setSelectionMode('select')
+        setIsDragging(true)
         return
       }
 
@@ -587,6 +664,7 @@ export function PianoRoll() {
         }
         setSelectionRect({ x1: x, y1: y, x2: x, y2: y })
         setSelectionMode('deleteSelect')
+        setIsDragging(true)
         return
       }
 
@@ -631,6 +709,7 @@ export function PianoRoll() {
             if (prev.has(hitNote.id)) return prev
             return new Set([hitNote.id])
           })
+          setIsDragging(true)
         } else {
           const beat = xToBeat(x)
           const midi = yToMidi(y)
@@ -648,6 +727,7 @@ export function PianoRoll() {
               originalNotes: [],
             }
             setSelectedNoteIds(new Set())
+            setIsDragging(true)
           }
         }
       } else if (e.button === 2) {
@@ -709,6 +789,7 @@ export function PianoRoll() {
 
       if (ghostMode) {
         setGhostPos({ x, y })
+        setHoverPosition(null)
         return
       }
 
@@ -719,6 +800,7 @@ export function PianoRoll() {
           x2: x,
           y2: y,
         })
+        setHoverPosition(null)
         return
       }
 
@@ -737,11 +819,24 @@ export function PianoRoll() {
             const isRight = Math.abs(x - (noteX + noteW)) <= RESIZE_ZONE
             setHoverCursor(isLeft || isRight ? 'ew-resize' : 'move')
           }
+          setHoverPosition(null)
         } else {
           setHoverCursor('crosshair')
+          const beat = xToBeat(x)
+          const midi = yToMidi(y)
+          if (beat >= 0 && midi >= MIN_MIDI && midi <= MAX_MIDI) {
+            // 保留未吸附的原始 beat，交由 ghost 计算时再吸附，
+            // 以便 center 模式下减去半时值后仍能正确取整。
+            setHoverPosition({ beat, midi })
+          } else {
+            setHoverPosition(null)
+          }
         }
         return
       }
+
+      // 正在拖拽：隐藏悬停幽灵
+      setHoverPosition(null)
 
       if (drag.type === 'move' && drag.originalNotes.length > 0) {
         const deltaX = e.clientX - drag.startClientX
@@ -829,11 +924,14 @@ export function PianoRoll() {
       track.beatsPerBar,
       totalBeats,
       xToBeat,
+      yToMidi,
       setPlayStartBeat,
     ],
   )
 
   const handleMouseUp = useCallback(() => {
+    setIsDragging(false)
+
     if (markerDragRef.current) {
       markerDragRef.current = false
       setIsDraggingMarker(false)
@@ -1205,6 +1303,52 @@ export function PianoRoll() {
     })
   }, [ghostMode, ghostPos, clipboard, xToBeat, yToMidi])
 
+  /**
+   * 悬停幽灵方块：
+   * 只要鼠标停在网格空白处、没有在拖拽、也没有粘贴幽灵模式，
+   * 就实时预览「若此时左键点击，会放下一个什么样的音符」。
+   * 位置由 `computeStartBeat` 计算，因此会遵循 notePlacement 设置；
+   * 颜色区分是否能放下。
+   */
+  const hoverGhost = useMemo(() => {
+    if (ghostMode || isDragging || !hoverPosition) return null
+    const mapping = findBestMapping(hoverPosition.midi)
+    if (!mapping) return null
+
+    const snappedStartBeat = computeStartBeat(
+      hoverPosition.beat,
+      defaultDuration,
+    )
+
+    const candidate: Note = {
+      id: '__hover-ghost__',
+      startBeat: snappedStartBeat,
+      durationBeats: defaultDuration,
+      key: mapping.key,
+      octaveShift: mapping.octaveShift,
+      isSharp: mapping.isSharp,
+    }
+    const isValid = !checkOverlap(candidate)
+
+    return {
+      x: beatToX(snappedStartBeat),
+      y: midiToY(hoverPosition.midi),
+      w: Math.max(4, defaultDuration * pixelsPerBeat - 2),
+      h: DEFAULT_ROW_HEIGHT - 2,
+      isValid,
+    }
+  }, [
+    ghostMode,
+    isDragging,
+    hoverPosition,
+    defaultDuration,
+    computeStartBeat,
+    checkOverlap,
+    beatToX,
+    midiToY,
+    pixelsPerBeat,
+  ])
+
   const bgColor = isDark ? '#18181b' : '#fafafa'
 
   const markerBarNumber = playStartBeat / (track.beatsPerBar || 4) + 1
@@ -1236,6 +1380,7 @@ export function PianoRoll() {
         onMouseLeave={() => {
           handleMouseUp()
           handleLabelMouseUp()
+          setHoverPosition(null)
         }}
         onContextMenu={handleContextMenu}
       >
@@ -1290,6 +1435,31 @@ export function PianoRoll() {
               />
             )
           })}
+          {hoverGhost && (
+            <div
+              style={{
+                position: 'absolute',
+                left: hoverGhost.x + 1,
+                top: hoverGhost.y + 1,
+                width: hoverGhost.w,
+                height: hoverGhost.h,
+                background: hexToRgba(
+                  hoverGhost.isValid
+                    ? NOTE_COLORS.default
+                    : INVALID_GHOST_COLOR,
+                  0.25,
+                ),
+                border: `1px dashed ${
+                  hoverGhost.isValid
+                    ? NOTE_COLORS.default
+                    : INVALID_GHOST_COLOR
+                }`,
+                borderRadius: 4,
+                pointerEvents: 'none',
+                zIndex: 4,
+              }}
+            />
+          )}
           {selectionStyle && <div style={selectionStyle} />}
           <div
             style={{

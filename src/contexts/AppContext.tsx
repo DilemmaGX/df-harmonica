@@ -9,6 +9,7 @@ import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
 import type {
   Language,
   Note,
+  NotePlacementMode,
   ProjectMeta,
   ThemeMode,
   Track,
@@ -44,6 +45,9 @@ export function AppProvider({ children }: AppProviderProps) {
   )
   const [themeMode, setThemeMode] = useState<ThemeMode>(
     persisted?.themeMode ?? 'system',
+  )
+  const [notePlacement, setNotePlacement] = useState<NotePlacementMode>(
+    persisted?.notePlacement ?? 'start',
   )
   const [isPlaying, setIsPlaying] = useState(false)
   const [playStartBeat, setPlayStartBeat] = useState(0)
@@ -128,18 +132,18 @@ export function AppProvider({ children }: AppProviderProps) {
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      saveState({ track, meta, language, themeMode })
+      saveState({ track, meta, language, themeMode, notePlacement })
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [track, meta, language, themeMode])
+  }, [track, meta, language, themeMode, notePlacement])
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      saveState({ track, meta, language, themeMode })
+      saveState({ track, meta, language, themeMode, notePlacement })
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [track, meta, language, themeMode])
+  }, [track, meta, language, themeMode, notePlacement])
 
   // ---------------------------------------------------------------------------
   // 主题跟随系统
@@ -194,6 +198,8 @@ export function AppProvider({ children }: AppProviderProps) {
     setLanguage,
     themeMode,
     setThemeMode,
+    notePlacement,
+    setNotePlacement,
     isPlaying,
     setIsPlaying,
     playStartBeat,

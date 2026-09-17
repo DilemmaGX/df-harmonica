@@ -10,6 +10,7 @@ import { KeyboardSimulator } from './components/KeyboardSimulator'
 import { ImportProjectDialog } from './components/ImportProjectDialog'
 import { ClearAllDialog } from './components/ClearAllDialog'
 import { ExamplesDialog } from './components/ExamplesDialog'
+import { ShortcutsDialog } from './components/ShortcutsDialog'
 import { LoadProjectConfirmDialog } from './components/LoadProjectConfirmDialog'
 import { abcToNotes } from './utils/abcConverter'
 import { downloadMidi } from './utils/midiExporter'
@@ -78,6 +79,7 @@ function AppContent() {
   const [importProjectOpen, setImportProjectOpen] = useState(false)
   const [clearAllOpen, setClearAllOpen] = useState(false)
   const [examplesOpen, setExamplesOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [pendingProject, setPendingProject] = useState<ProjectFile | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('perform')
   const [performShowScore, setPerformShowScore] = useState(false)
@@ -159,6 +161,7 @@ function AppContent() {
         onExportMidi={handleExportMidi}
         onRequestClearAll={() => setClearAllOpen(true)}
         onOpenExamples={() => setExamplesOpen(true)}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         performShowScore={performShowScore}
@@ -208,6 +211,11 @@ function AppContent() {
         open={examplesOpen}
         onClose={() => setExamplesOpen(false)}
         onSelect={handleSelectExample}
+      />
+
+      <ShortcutsDialog
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
       />
 
       <LoadProjectConfirmDialog

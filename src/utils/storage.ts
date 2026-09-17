@@ -1,6 +1,7 @@
 import type {
   Language,
   Note,
+  NotePlacementMode,
   ProjectMeta,
   ThemeMode,
   Track,
@@ -16,8 +17,9 @@ const STORAGE_KEY = 'df-harmonica:state'
  * 当前代码期望的存储版本。
  * - v1：最初的持久化版本，只包含 track / language / themeMode
  * - v2：新增 meta（标题 / 作曲者 / 制谱者）
+ * - v3：新增 notePlacement（新音符相对鼠标的对齐方式）
  */
-export const STORAGE_VERSION = 2
+export const STORAGE_VERSION = 3
 
 // ============================================================================
 // 当前版本的存储结构
@@ -28,6 +30,7 @@ export interface PersistedState {
   meta: ProjectMeta
   language: Language
   themeMode: ThemeMode
+  notePlacement: NotePlacementMode
 }
 
 export const DEFAULT_META: ProjectMeta = {
@@ -39,8 +42,8 @@ export const DEFAULT_META: ProjectMeta = {
 // ============================================================================
 // 迁移定义
 //
-// 未来新增版本（v2 → v3）时的步骤：
-//   1. 写一个 migrationV2toV3，接收旧结构、返回新结构（含 version: 3）
+// 未来新增版本（v3 → v4）时的步骤：
+//   1. 写一个 migrationV3toV4，接收旧结构、返回新结构（含 version: 4）
 //   2. 把它追加到 MIGRATIONS 数组末尾
 //   3. 把 STORAGE_VERSION +1
 //   4. 按需更新 PersistedState 类型
@@ -68,8 +71,21 @@ const migrationV1toV2 = (raw: any): any => {
   }
 }
 
+/** v2 → v3：新增 notePlacement，默认 'start'（保持既有行为） */
+const migrationV2toV3 = (raw: any): any => {
+  const data = raw?.data && typeof raw.data === 'object' ? raw.data : {}
+  return {
+    version: 3,
+    data: {
+      ...data,
+      notePlacement: 'start',
+    },
+  }
+}
+
 const MIGRATIONS: MigrationEntry[] = [
   { from: 1, to: 2, migrate: migrationV1toV2 },
+  { from: 2, to: 3, migrate: migrationV2toV3 },
 ]
 
 // ============================================================================
@@ -189,6 +205,7 @@ function normalize(raw: any): PersistedState | null {
     meta: normalizeMeta(data.meta),
     language: data.language === 'en' ? 'en' : 'zh',
     themeMode: themeModes.includes(data.themeMode) ? data.themeMode : 'system',
+    notePlacement: data.notePlacement === 'center' ? 'center' : 'start',
   }
 }
 

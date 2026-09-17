@@ -2,6 +2,7 @@ import { createContext } from 'react'
 import type {
   Language,
   Note,
+  NotePlacementMode,
   ProjectMeta,
   ThemeMode,
   Track,
@@ -18,6 +19,9 @@ export interface AppState {
   setLanguage: (lang: Language) => void
   themeMode: ThemeMode
   setThemeMode: (mode: ThemeMode) => void
+  /** 新音符相对鼠标的对齐方式（start / center） */
+  notePlacement: NotePlacementMode
+  setNotePlacement: (mode: NotePlacementMode) => void
   isPlaying: boolean
   setIsPlaying: (playing: boolean) => void
   /** 播放起始拍（小节开头），默认 0 = 1 号小节开头 */

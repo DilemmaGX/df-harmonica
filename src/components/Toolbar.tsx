@@ -36,6 +36,9 @@ import LanguageIcon from '@mui/icons-material/Language'
 import CheckIcon from '@mui/icons-material/Check'
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic'
 import GitHubIcon from '@mui/icons-material/GitHub'
+import KeyboardIcon from '@mui/icons-material/Keyboard'
+import AlignHorizontalLeftIcon from '@mui/icons-material/AlignHorizontalLeft'
+import AlignHorizontalCenterIcon from '@mui/icons-material/AlignHorizontalCenter'
 import { useState } from 'react'
 import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
@@ -53,6 +56,7 @@ interface ToolbarProps {
   onExportMidi: () => void
   onRequestClearAll: () => void
   onOpenExamples: () => void
+  onOpenShortcuts: () => void
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
   performShowScore: boolean
@@ -101,6 +105,7 @@ export function Toolbar({
   onExportMidi,
   onRequestClearAll,
   onOpenExamples,
+  onOpenShortcuts,
   viewMode,
   onViewModeChange,
   performShowScore,
@@ -113,6 +118,8 @@ export function Toolbar({
     setLanguage,
     themeMode,
     setThemeMode,
+    notePlacement,
+    setNotePlacement,
     isPlaying,
     setIsPlaying,
     undo,
@@ -162,6 +169,10 @@ export function Toolbar({
     if (themeMode === 'light') return <LightModeIcon />
     if (themeMode === 'dark') return <DarkModeIcon />
     return <SettingsBrightnessIcon />
+  }
+
+  const toggleNotePlacement = () => {
+    setNotePlacement(notePlacement === 'start' ? 'center' : 'start')
   }
 
   const isCompose = viewMode === 'compose'
@@ -434,6 +445,42 @@ export function Toolbar({
             inputProps={{ min: 1, max: 12, style: { textAlign: 'center' } }}
             variant="outlined"
           />
+        </Tooltip>
+
+        {/* 新音符放置方式：鼠标位于音符开头 / 中间 */}
+        <Tooltip
+          title={
+            notePlacement === 'start'
+              ? t.toolbar.notePlacementStart
+              : t.toolbar.notePlacementCenter
+          }
+        >
+          <span>
+            <IconButton
+              size="small"
+              color={notePlacement === 'center' ? 'primary' : 'inherit'}
+              onClick={toggleNotePlacement}
+              aria-label={t.toolbar.notePlacement}
+              disabled={!isCompose}
+            >
+              {notePlacement === 'start' ? (
+                <AlignHorizontalLeftIcon />
+              ) : (
+                <AlignHorizontalCenterIcon />
+              )}
+            </IconButton>
+          </span>
+        </Tooltip>
+
+        <Tooltip title={t.toolbar.shortcuts}>
+          <IconButton
+            size="small"
+            onClick={onOpenShortcuts}
+            color="inherit"
+            aria-label={t.toolbar.shortcuts}
+          >
+            <KeyboardIcon />
+          </IconButton>
         </Tooltip>
 
         <Tooltip title={t.settings.language}>
