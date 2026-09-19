@@ -109,6 +109,39 @@ export function parseProjectFile(text: string): ProjectFile | null {
   }
 }
 
+export type ProjectValidationFailure =
+  | 'invalidChord'
+  | 'invalidNoteTiming'
+
+export type ProjectValidationResult =
+  | { ok: true }
+  | { ok: false; reason: ProjectValidationFailure }
+
+/** 处理浮点误差，避免相邻音符被误判为重叠 */
+const OVERLAP_EPSILON = 1e-6
+
+export function validateProjectFile(
+  project: ProjectFile,
+): ProjectValidationResult {
+  const sorted = [...project.track.notes].sort(
+    (a, b) => a.startBeat - b.startBeat,
+  )
+  for (let i = 0; i < sorted.length; i++) {
+    const note = sorted[i]
+    if (note.startBeat < 0 || note.durationBeats <= 0) {
+      return { ok: false, reason: 'invalidNoteTiming' }
+    }
+    if (i > 0) {
+      const prev = sorted[i - 1]
+      const prevEnd = prev.startBeat + prev.durationBeats
+      if (note.startBeat < prevEnd - OVERLAP_EPSILON) {
+        return { ok: false, reason: 'invalidChord' }
+      }
+    }
+  }
+  return { ok: true }
+}
+
 // ---------------------------------------------------------------------------
 // 紧凑编码 —— 用于二维码
 //

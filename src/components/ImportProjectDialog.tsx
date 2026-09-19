@@ -12,7 +12,11 @@ import {
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
-import { parseProjectFile, decodeProjectFromQR } from '../utils/projectFormat'
+import {
+  parseProjectFile,
+  decodeProjectFromQR,
+  validateProjectFile,
+} from '../utils/projectFormat'
 import { extractProjectFromImageFile } from '../utils/imageQRScanner'
 import { abcToNotes } from '../utils/abcConverter'
 import { parseMidiFile } from '../utils/midiImporter'
@@ -85,6 +89,27 @@ export function ImportProjectDialog({
     }
   }
 
+  /**
+   * 校验通过后进入暂存流程。
+   *
+   * 若数据违反口风琴的物理约束（例如出现和弦、负起始拍或非正时值），
+   * 在导入阶段直接报错并中止，不进入暂存 / 覆盖确认，避免把非法数据
+   * 写进编辑器。所有导入分支（JSON / QR / ABC / MIDI）都必须经过这里。
+   */
+  const validateAndStage = (project: ProjectFile): void => {
+    const result = validateProjectFile(project)
+    if (!result.ok) {
+      setError(
+        result.reason === 'invalidChord'
+          ? t.importProject.chordError
+          : t.importProject.invalidNoteTimingError,
+      )
+      resetFileInput()
+      return
+    }
+    stageProject(project)
+  }
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -124,7 +149,7 @@ export function ImportProjectDialog({
           beatsPerBar: result.beatsPerBar,
         },
       }
-      stageProject(projectFromMidi)
+      validateAndStage(projectFromMidi)
       return
     }
 
@@ -145,7 +170,7 @@ export function ImportProjectDialog({
         return
       }
 
-      stageProject(project)
+      validateAndStage(project)
       return
     }
 
@@ -161,13 +186,13 @@ export function ImportProjectDialog({
 
     const projectJson = parseProjectFile(text)
     if (projectJson) {
-      stageProject(projectJson)
+      validateAndStage(projectJson)
       return
     }
 
     const projectQR = decodeProjectFromQR(text)
     if (projectQR) {
-      stageProject(projectQR)
+      validateAndStage(projectQR)
       return
     }
 
@@ -187,7 +212,7 @@ export function ImportProjectDialog({
           beatsPerBar: abc.beatsPerBar,
         },
       }
-      stageProject(projectFromAbc)
+      validateAndStage(projectFromAbc)
       return
     }
 

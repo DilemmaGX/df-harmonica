@@ -101,6 +101,10 @@ export const translations = {
       confirm: 'Confirm Import',
       back: 'Back',
       untitled: 'Untitled Project',
+      chordError:
+        'Invalid data: notes overlap in time (a chord was detected). The harmonica can only sound one note at a time.',
+      invalidNoteTimingError:
+        'Invalid data: a note has a negative start beat or a non-positive duration.',
     },
     clearAllDialog: {
       title: 'Clear All',
@@ -263,6 +267,10 @@ export const translations = {
       confirm: '确认导入',
       back: '返回',
       untitled: '未命名工程',
+      chordError:
+        '数据无效：存在时间上重叠的音符（和弦）。口风琴一次只能演奏一个音。',
+      invalidNoteTimingError:
+        '数据无效：存在起始拍为负或时值非正的音符。',
     },
     clearAllDialog: {
       title: '清空全部',
