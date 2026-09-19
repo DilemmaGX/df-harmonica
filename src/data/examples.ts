@@ -4,6 +4,8 @@ export interface ExampleProject {
     zh: string
     en: string
   }
+  /** 难度 1–5：1 入门 / 2 简单 / 3 中等 / 4 进阶 / 5 高难 */
+  difficulty: number
   abc: string
 }
 
@@ -14,6 +16,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: '寂寞的人伤心的歌',
       en: 'Song of the Lonely and Sad',
     },
+    difficulty: 1,
     abc: [
       'X:1',
       'T:Random Tune',
@@ -31,6 +34,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: 'See You Again',
       en: 'See You Again',
     },
+    difficulty: 1,
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -53,6 +57,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: '美人鱼',
       en: 'Mermaid',
     },
+    difficulty: 2,
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -72,6 +77,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: '东南苦行山',
       en: 'Southeast Ascetic Mountain',
     },
+    difficulty: 3,
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -95,6 +101,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: '太阳照常升起',
       en: 'The Sun Also Rises',
     },
+    difficulty: 3,
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -117,6 +124,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: '喀秋莎',
       en: 'Katyusha',
     },
+    difficulty: 3,
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -144,6 +152,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: '牢不可破的联盟',
       en: 'The Unbreakable Union',
     },
+    difficulty: 4,
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -181,6 +190,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: '黑人抬棺',
       en: 'Astronomia',
     },
+    difficulty: 3,
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -215,6 +225,7 @@ export const EXAMPLES: ExampleProject[] = [
       zh: 'Never See Me Again',
       en: 'Never See Me Again',
     },
+    difficulty: 3,
     abc: [
       'X:1',
       'T:Harmonica Tune',
@@ -224,6 +235,57 @@ export const EXAMPLES: ExampleProject[] = [
       'K:C',
       'G2 B1/2 A1/2 G G2 B1/2 A1/2 G E2 B1/2 A1/2 G ^D2 D1/2 C1/2 G,1/2 ^D,1/2',
       'A2 d1/2 c1/2 B1/2 A z1/2 G3/2 G3/2 G3/2 z1/2 G2 c1/2 z1/2 B1/2 z1/2 G1/2 G3/2',
+    ].join('\n'),
+  },
+  {
+    id: 'mohe-ballroom',
+    title: {
+      zh: '漠河舞厅',
+      en: 'Mohe Ballroom',
+    },
+    difficulty: 5,
+    abc: [
+      'X:1',
+      'T:Harmonica Tune',
+      'M:4/4',
+      'L:1/8',
+      'Q:1/4=66',
+      'K:C',
+      'E, A, A, B,1/2 C3/2 D E C E E E G1/2 E5/2 z E1/2 E1/2',
+      'D D D E1/2 ^E5/2 z G, E E E D1/2 B,5/2 z2',
+      'A, B, C D1/2 E3/2 C E C E E E G1/2 E5/2 z D1/2 E1/2',
+      'D D D E ^E2 z2 G, E E D B,2 z2',
+      'A3 E A, z A, G ^E3 E1/2 ^E3/2 z3',
+      'G3 D G, z G, G E3 ^E E ^E E z',
+      'A3 E A, z A, G ^E3 E1/2 ^E5/2 z ^E',
+      'E ^E E1/2 ^E E1/2 E ^E E ^E E6 z2',
+      '^G, G, G, A,1/2 B,1/2 z E, E B, D C C B,1/2 C1/2 z C C C',
+      'D G, D G,1/2 D1/2 z D D ^E ^E E E ^D1/2 E1/2 z E E E',
+      'D D D E1/2 ^E1/2 z ^E ^E G C C C1/2 D E5/2 z E1/2 E1/2',
+      'D D1/2 E3/2 E A E1/2 D3/2 C1/2 B,1/2 C A, z4 B,1/2 C3/2',
+      'A,4 z4 A3/2 G3/2 ^A A1/2 ^E1/2 D1/2 ^E1/2 A1/2 ^E1/2 D1/2 ^E1/2',
+      'A1/2 ^E1/2 D1/2 ^E1/2 A1/2 ^E1/2 D1/2 ^E1/2 A1/2 E1/2 C1/2 E1/2 A1/2 E1/2 C1/2 E1/2 A1/2 E1/2 C1/2 E1/2 A1/2 E1/2 C1/2 E1/2 G1/2 E1/2 C1/2 E1/2 G1/2 E1/2 C1/2 E1/2',
+      'G1/2 E1/2 C1/2 E1/2 G1/2 E1/2 C1/2 E1/2 A1/2 E1/2 C1/2 E1/2 ^A1/2 A1/2 ^E1/2 E1/2 ^C1/2 E1/2 ^A1/2 A1/2 E1/2 ^E1/2 G1/2 ^E1/2 A1/2 ^E1/2 D1/2 ^E1/2 A1/2 ^E1/2 D1/2 ^E1/2',
+      'A1/2 ^E1/2 D1/2 ^E1/2 A1/2 ^E1/2 D1/2 ^E1/2 A1/2 E1/2 C1/2 E1/2 A1/2 E1/2 C1/2 E1/2 A1/2 E1/2 C1/2 E1/2 A1/2 ^E1/2 ^A1/2 A1/2 G1/2 E1/2 C1/2 E1/2 G1/2 E1/2 C1/2 E1/2',
+      'G1/2 E1/2 C1/2 E1/2 G1/2 E1/2 C1/2 E1/2 A G A ^A A4 z4',
+      'E, A, A, B,1/2 C3/2 D E C E E E G1/2 E5/2 z E1/2 E1/2',
+      'D D D E1/2 ^E5/2 z G, E E E D1/2 B,5/2 z2',
+      'A, B, C D1/2 E3/2 C E C E E E G1/2 E5/2 z D1/2 E1/2',
+      'D D D E ^E2 z2 G, E E D B,2 z2',
+      'A3 E A, z A, G ^E3 E1/2 ^E5/2 z2',
+      'G3 A B z G D ^E3 E E2 z2',
+      'E3 C A, z E, E D3 E1/2 ^E5/2 z ^E',
+      'E ^E E1/2 ^E3/2 E ^E E ^E E6 z2',
+      '^G, G, G, A,1/2 B,1/2 z E, E B, D C C B,1/2 C1/2 z C C C',
+      'D G, D G,1/2 D1/2 z D D ^E ^E E E ^D1/2 E1/2 z E E E',
+      'D D D E1/2 ^E1/2 z ^E ^E G C C C1/2 D E5/2 z E1/2 E1/2',
+      'D D1/2 E3/2 E A E1/2 D3/2 C1/2 B,1/2 C A, z4 B,1/2 C3/2',
+      'A,4 z4 ^G, G, G, A,1/2 B,1/2 z E, E B,',
+      'D C C B,1/2 C1/2 z C C C D G, D G,1/2 D1/2 z D D ^E',
+      '^E E E ^D1/2 E1/2 z E E E D D D E1/2 ^E1/2 z ^E ^E G',
+      'E E E B1/2 c5/2 z c B3 A ^G2 B E',
+      'A6 z c B6 B E',
+      'A8',
     ].join('\n'),
   },
 ]

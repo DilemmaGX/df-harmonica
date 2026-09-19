@@ -81,6 +81,12 @@ export const translations = {
     examples: {
       title: 'Example Scores',
       hint: 'Click an example to load it into the editor. If the current project is not empty, a confirmation dialog will appear.',
+      difficulty: 'Difficulty',
+      difficulty1: 'Beginner',
+      difficulty2: 'Easy',
+      difficulty3: 'Intermediate',
+      difficulty4: 'Advanced',
+      difficulty5: 'Expert',
     },
     loadProjectDialog: {
       title: 'Load Project',
@@ -269,6 +275,12 @@ export const translations = {
     examples: {
       title: '内置示例曲谱',
       hint: '点击示例即可加载到编辑器。若当前工程非空，将弹出确认对话框。',
+      difficulty: '难度',
+      difficulty1: '入门',
+      difficulty2: '简单',
+      difficulty3: '中等',
+      difficulty4: '进阶',
+      difficulty5: '高难',
     },
     loadProjectDialog: {
       title: '加载工程',
