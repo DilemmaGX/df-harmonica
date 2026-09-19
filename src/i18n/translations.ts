@@ -104,7 +104,23 @@ export const translations = {
       chordError:
         'Invalid data: notes overlap in time (a chord was detected). The harmonica can only sound one note at a time.',
       invalidNoteTimingError:
-        'Invalid data: a note has a negative start beat or a non-positive duration.',
+        'Invalid data: a note has a negative start beat or a non-positive duration. This cannot be repaired automatically.',
+      invalidNoteDurationError:
+        'Invalid data: a note has a duration that is not a multiple of 1/4 beat (e.g. 1/3 beat). The editor only accepts durations that are multiples of 1/4 beat.',
+      melodyDetectedTitle: 'Conversion required',
+      melodyDetectedMessage:
+        'This project contains content the harmonica cannot play directly: notes that sound at the same time (chords) and/or durations that are not multiples of 1/4 beat. Pick a melody-extraction algorithm below; the converter will also re-quantize the time line to the 1/4-beat grid without changing its total length.',
+      melodyAlgorithm: 'Melody extraction algorithm',
+      algorithmSkyline: 'Skyline — highest note at each moment, merging repeats',
+      algorithmTop: 'Top note — keep the highest pitch of each chord',
+      algorithmBottom: 'Bottom note — keep the lowest pitch of each chord',
+      algorithmLongest: 'Longest note — keep the longest note of each chord',
+      melodyPreview:
+        'Converted: {count} notes (was {original} notes; {removed} removed)',
+      melodyQuantizedHint:
+        'Re-quantization is done by maximum-coverage cell voting: the total time span is preserved, and each 1/4-beat cell keeps whichever note covers it for the longest. Nothing is dropped or snapped blindly.',
+      abortImport: 'Abort import',
+      useConverted: 'Use converted project',
     },
     clearAllDialog: {
       title: 'Clear All',
@@ -144,6 +160,7 @@ export const translations = {
       playStop: 'Play / Stop',
       undo: 'Undo',
       redo: 'Redo',
+      selectAll: 'Select all notes',
       copy: 'Copy selection',
       paste: 'Paste (ghost preview → click to place)',
       deleteSelected: 'Delete selection',
@@ -270,7 +287,23 @@ export const translations = {
       chordError:
         '数据无效：存在时间上重叠的音符（和弦）。口风琴一次只能演奏一个音。',
       invalidNoteTimingError:
-        '数据无效：存在起始拍为负或时值非正的音符。',
+        '数据无效：存在起始拍为负或时值非正的音符，无法自动修复。',
+      invalidNoteDurationError:
+        '数据无效：存在音长不是 1/4 拍整数倍的音符（例如 1/3 拍）。编辑器仅接受 1/4 拍整数倍的音长。',
+      melodyDetectedTitle: '需要转换',
+      melodyDetectedMessage:
+        '该工程包含口风琴无法直接演奏的内容：同时发声的音符（和弦）和 / 或不是 1/4 拍整数倍的音长。请选择一种旋律提取算法，转换器会同时把整条时间线重新量化到 1/4 拍网格，而不改变其总时长。',
+      melodyAlgorithm: '旋律提取算法',
+      algorithmSkyline: '天际线 —— 每一时刻取最高音，自动合并同音',
+      algorithmTop: '最高音 —— 按和弦分组，每组取音高最高者',
+      algorithmBottom: '最低音 —— 按和弦分组，每组取音高最低者',
+      algorithmLongest: '最长音 —— 按和弦分组，每组取时值最长者',
+      melodyPreview:
+        '转换后：{count} 个音符（原 {original} 个，移除 {removed} 个）',
+      melodyQuantizedHint:
+        '重新量化采用「最大覆盖栅格投票」：整条旋律的总时长严格守恒，每个 1/4 拍栅格保留在该时段内占据最久的音高，不做粗暴的就近吸附。',
+      abortImport: '终止导入',
+      useConverted: '使用转换后的工程',
     },
     clearAllDialog: {
       title: '清空全部',
@@ -310,6 +343,7 @@ export const translations = {
       playStop: '播放 / 停止',
       undo: '撤销',
       redo: '重做',
+      selectAll: '全选所有音符',
       copy: '复制选中音符',
       paste: '粘贴（幽灵预览 → 左键放置）',
       deleteSelected: '删除选中音符',

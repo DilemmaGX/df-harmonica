@@ -112,6 +112,7 @@ export function parseProjectFile(text: string): ProjectFile | null {
 export type ProjectValidationFailure =
   | 'invalidChord'
   | 'invalidNoteTiming'
+  | 'invalidNoteDuration'
 
 export type ProjectValidationResult =
   | { ok: true }
@@ -119,6 +120,16 @@ export type ProjectValidationResult =
 
 /** 处理浮点误差，避免相邻音符被误判为重叠 */
 const OVERLAP_EPSILON = 1e-6
+
+/** 编辑器使用的时值量化单位：1/4 拍 */
+export const DURATION_QUANTUM = 0.25
+
+/** 判断一个时值是否落在 1/4 拍网格上（且不小于 1/4 拍） */
+export function isDurationOnGrid(durationBeats: number): boolean {
+  if (durationBeats < DURATION_QUANTUM - OVERLAP_EPSILON) return false
+  const ratio = durationBeats / DURATION_QUANTUM
+  return Math.abs(ratio - Math.round(ratio)) < OVERLAP_EPSILON
+}
 
 export function validateProjectFile(
   project: ProjectFile,
@@ -130,6 +141,9 @@ export function validateProjectFile(
     const note = sorted[i]
     if (note.startBeat < 0 || note.durationBeats <= 0) {
       return { ok: false, reason: 'invalidNoteTiming' }
+    }
+    if (!isDurationOnGrid(note.durationBeats)) {
+      return { ok: false, reason: 'invalidNoteDuration' }
     }
     if (i > 0) {
       const prev = sorted[i - 1]

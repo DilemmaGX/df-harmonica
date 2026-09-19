@@ -209,4 +209,21 @@ export const EXAMPLES: ExampleProject[] = [
       'A,4',
     ].join('\n'),
   },
+  {
+    id: 'never-see-me-again',
+    title: {
+      zh: 'Never See Me Again',
+      en: 'Never See Me Again',
+    },
+    abc: [
+      'X:1',
+      'T:Harmonica Tune',
+      'M:4/4',
+      'L:1/8',
+      'Q:1/4=85',
+      'K:C',
+      'G2 B1/2 A1/2 G G2 B1/2 A1/2 G E2 B1/2 A1/2 G ^D2 D1/2 C1/2 G,1/2 ^D,1/2',
+      'A2 d1/2 c1/2 B1/2 A z1/2 G3/2 G3/2 G3/2 z1/2 G2 c1/2 z1/2 B1/2 z1/2 G1/2 G3/2',
+    ].join('\n'),
+  },
 ]

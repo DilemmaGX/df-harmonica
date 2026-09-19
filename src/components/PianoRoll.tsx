@@ -464,6 +464,16 @@ export function PianoRoll() {
         return
       }
 
+      // ------- 全选：Ctrl + A -------
+      if (isCtrl && e.code === 'KeyA') {
+        e.preventDefault()
+        if (ghostMode) return
+        setSelectedNoteIds(new Set(track.notes.map(n => n.id)))
+        setSelectionRect(null)
+        setSelectionMode(null)
+        return
+      }
+
       if (isCtrl && e.code === 'KeyC') {
         if (selectedNoteIds.size > 0) {
           const selectedNotes = track.notes.filter(n =>

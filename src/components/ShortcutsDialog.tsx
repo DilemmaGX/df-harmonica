@@ -90,6 +90,7 @@ export function ShortcutsDialog({ open, onClose }: ShortcutsDialogProps) {
           <ShortcutRow keys="Space" label={t.shortcuts.playStop} />
           <ShortcutRow keys="Ctrl + Z" label={t.shortcuts.undo} />
           <ShortcutRow keys="Ctrl + Y" label={t.shortcuts.redo} />
+          <ShortcutRow keys="Ctrl + A" label={t.shortcuts.selectAll} />
           <ShortcutRow keys="Ctrl + C" label={t.shortcuts.copy} />
           <ShortcutRow keys="Ctrl + V" label={t.shortcuts.paste} />
           <ShortcutRow keys="Delete" label={t.shortcuts.deleteSelected} />
