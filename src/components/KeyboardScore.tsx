@@ -5,12 +5,16 @@ import {
   getMidiNote,
   getAllMappingsForMidi,
   KEY_DISPLAY,
+  getJianpuInfo,
 } from '../utils/noteMapping'
 import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
 import { createProjectFile, encodeProjectForQR } from '../utils/projectFormat'
 import { createQRMatrix, qrMatrixToPath } from '../utils/qrCode'
 import { NOTE_COLORS, EXPORT_FONT_FAMILY } from '../constants/score'
+
+/** 导出格式：键盘谱 / 数字谱 */
+export type ScoreType = 'keyboard' | 'numbered'
 
 const NOTE_HEIGHT = 40
 const MIN_NOTE_WIDTH = 24
@@ -126,6 +130,13 @@ interface KeyboardScoreProps {
   bottomPadding?: number
   /** 是否在标题下方嵌入紧凑编码二维码 */
   includeQR?: boolean
+  /**
+   * 导出格式：
+   * - `keyboard`（默认）：PC 端键盘谱，音符块内显示按键字母
+   * - `numbered`：移动端数字简谱，音符块内显示 1–7 的简谱数字，
+   *   并根据八度 / 升号自动添加八度点与升降号
+   */
+  scoreType?: ScoreType
 }
 
 export function KeyboardScore({
@@ -142,6 +153,7 @@ export function KeyboardScore({
   showBarNumbers = true,
   bottomPadding = 40,
   includeQR = false,
+  scoreType = 'keyboard',
 }: KeyboardScoreProps) {
   const theme = useTheme()
   const { language } = useAppContext()
@@ -504,11 +516,36 @@ export function KeyboardScore({
               )
               if (width <= 0) return null
               const x = LINE_PADDING + relativeStart * pixelsPerBeat
-              if (block.note) {
-                const note = block.note
-                const fill = getNoteColor(note)
-                const keyLabel =
-                  KEY_DISPLAY[note.key] + (note.isSharp ? '#' : '')
+
+              if (!block.note) {
+                return (
+                  <rect
+                    key={`rest-${lineIdx}-${blockIdx}`}
+                    x={x}
+                    y={lineY}
+                    width={width}
+                    height={NOTE_HEIGHT}
+                    fill={c.restBg}
+                    rx={3}
+                  />
+                )
+              }
+
+              const note = block.note
+              const fill = getNoteColor(note)
+              const midi = getMidiNote(
+                note.key,
+                note.octaveShift,
+                note.isSharp,
+              )
+
+              // ---------------- 数字谱 ----------------
+              if (scoreType === 'numbered') {
+                const info = getJianpuInfo(midi)
+                const digit = `${info.sharp}${info.base}`
+                const showDotsAbove = info.dotsAbove > 0
+                const showDotsBelow = info.dotsBelow > 0
+
                 return (
                   <g key={`block-${lineIdx}-${blockIdx}`}>
                     <rect
@@ -524,35 +561,80 @@ export function KeyboardScore({
                       rx={3}
                       opacity={0.92}
                     >
-                      <title>{keyLabel}</title>
+                      <title>{digit}</title>
                     </rect>
                     {width > 20 && (
-                      <text
-                        x={x + width / 2}
-                        y={lineY + NOTE_HEIGHT / 2 + 5}
-                        textAnchor="middle"
-                        fontSize="12"
-                        fontWeight="bold"
-                        fill="white"
-                      >
-                        {keyLabel}
-                      </text>
+                      <>
+                        <text
+                          x={x + width / 2}
+                          y={lineY + NOTE_HEIGHT / 2 + 6}
+                          textAnchor="middle"
+                          fontSize="16"
+                          fontWeight="bold"
+                          fill="white"
+                        >
+                          {digit}
+                        </text>
+                        {showDotsAbove &&
+                          Array.from({ length: info.dotsAbove }).map((_, i) => (
+                            <circle
+                              key={`dotAbove-${i}`}
+                              cx={x + width / 2}
+                              cy={lineY + 8 - i * 4}
+                              r={1.6}
+                              fill="white"
+                            />
+                          ))}
+                        {showDotsBelow &&
+                          Array.from({ length: info.dotsBelow }).map((_, i) => (
+                            <circle
+                              key={`dotBelow-${i}`}
+                              cx={x + width / 2}
+                              cy={lineY + NOTE_HEIGHT - 8 + i * 4}
+                              r={1.6}
+                              fill="white"
+                            />
+                          ))}
+                      </>
                     )}
                   </g>
                 )
-              } else {
-                return (
+              }
+
+              // ---------------- 键盘谱（默认，保持不变） ----------------
+              const keyLabel =
+                KEY_DISPLAY[note.key] + (note.isSharp ? '#' : '')
+              return (
+                <g key={`block-${lineIdx}-${blockIdx}`}>
                   <rect
-                    key={`rest-${lineIdx}-${blockIdx}`}
                     x={x}
                     y={lineY}
                     width={width}
                     height={NOTE_HEIGHT}
-                    fill={c.restBg}
+                    fill={fill}
+                    stroke={
+                      note.isSharp ? c.noteStrokeSharp : c.noteStrokeDefault
+                    }
+                    strokeWidth={note.isSharp ? 2.5 : 1}
                     rx={3}
-                  />
-                )
-              }
+                    opacity={0.92}
+                  >
+                    <title>{keyLabel}</title>
+                  </rect>
+                  {width > 20 && (
+                    <text
+                      x={x + width / 2}
+                      y={lineY + NOTE_HEIGHT / 2 + 5}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fontWeight="bold"
+                      fill="white"
+                    >
+                      {keyLabel}
+                    </text>
+                  )}
+                </g>
+              )
             })}
           </g>
         )

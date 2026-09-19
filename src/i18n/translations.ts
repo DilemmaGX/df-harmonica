@@ -74,6 +74,9 @@ export const translations = {
       composer: 'Composer',
       transcriber: 'Transcriber',
       includeQR: 'Include source QR',
+      scoreType: 'Score type',
+      scoreTypeKeyboard: 'PC keyboard score',
+      scoreTypeNumbered: 'Mobile numbered score',
     },
     examples: {
       title: 'Example Scores',
@@ -259,6 +262,9 @@ export const translations = {
       composer: '作曲者',
       transcriber: '制谱者',
       includeQR: '附带源文件二维码',
+      scoreType: '谱面类型',
+      scoreTypeKeyboard: 'PC 端键盘谱',
+      scoreTypeNumbered: '移动端数字谱',
     },
     examples: {
       title: '内置示例曲谱',

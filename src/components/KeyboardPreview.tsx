@@ -21,7 +21,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode'
 import type { Note } from '../types'
 import { useAppContext } from '../contexts/useAppContext'
 import { getTranslations } from '../i18n/translations'
-import { KeyboardScore } from './KeyboardScore'
+import { KeyboardScore, type ScoreType } from './KeyboardScore'
 import { EXPORT_FONT_FAMILY } from '../constants/score'
 import { saveFile } from '../utils/saveFile'
 
@@ -56,6 +56,8 @@ export function KeyboardPreviewDialog({
 
   const [barsPerLine, setBarsPerLine] = useState(2)
   const [includeQR, setIncludeQR] = useState(true)
+  /** 导出格式：键盘谱 / 数字谱 */
+  const [scoreType, setScoreType] = useState<ScoreType>('keyboard')
 
   const previewRef = useRef<HTMLDivElement>(null)
 
@@ -64,10 +66,12 @@ export function KeyboardPreviewDialog({
     onClose()
   }
 
-  const fileName = (meta.title.trim() || 'harmonica-score').replace(
+  const baseFileName = (meta.title.trim() || 'harmonica-score').replace(
     /[\\/:*?"<>|]/g,
     '_',
   )
+  const fileName =
+    scoreType === 'numbered' ? `${baseFileName}-numbered` : baseFileName
 
   const doExport = async (format: 'png' | 'svg') => {
     const el = previewRef.current
@@ -174,6 +178,23 @@ export function KeyboardPreviewDialog({
           alignItems="center"
           sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }}
         >
+          {/* 导出格式：键盘谱 / 数字谱 */}
+          <TextField
+            select
+            size="small"
+            label={t.keyboardPreview.scoreType}
+            value={scoreType}
+            onChange={(e) => setScoreType(e.target.value as ScoreType)}
+            sx={{ width: 160 }}
+          >
+            <MenuItem value="keyboard">
+              {t.keyboardPreview.scoreTypeKeyboard}
+            </MenuItem>
+            <MenuItem value="numbered">
+              {t.keyboardPreview.scoreTypeNumbered}
+            </MenuItem>
+          </TextField>
+
           <TextField
             select
             size="small"
@@ -257,6 +278,7 @@ export function KeyboardPreviewDialog({
             transcriber={meta.transcriber}
             mode={scoreMode}
             includeQR={includeQR}
+            scoreType={scoreType}
           />
         </Box>
       </DialogContent>
